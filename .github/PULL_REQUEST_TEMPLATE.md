@@ -1,6 +1,6 @@
-## Item
+## Objetivo
 
-`{{LINEAR_TEAM_KEY}}-NN`
+Descreva o problema ou resultado esperado. Link para spec ou tarefa externa é opcional.
 
 ## O que muda
 

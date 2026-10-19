@@ -1,5 +1,8 @@
 # Integração
 
-Vazio de propósito. Quando o produto tiver I/O (Postgres, HTTP real), coloque `*.integration.test.ts` aqui com banco `_test` isolado.
+Testes de Postgres, HTTP e preparação local ficam em `*.test.ts` nesta pasta.
+Execute `pnpm test:integration`; o comando prepara bancos descartáveis e nunca
+usa o banco de desenvolvimento. Não execute testes contra credenciais reais.
 
-`scripts/check-full` só roda esta pasta se existir arquivo de teste. Não pule o arquivo dono “porque o CI roda”.
+`pnpm check:full` e o CI executam integração obrigatoriamente. Acrescente o teste
+da sua feature junto da implementação e preserve as proteções de isolamento.

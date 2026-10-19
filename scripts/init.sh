@@ -9,12 +9,12 @@ if ! command -v pnpm >/dev/null 2>&1; then
     corepack enable
     corepack prepare pnpm@10.33.4 --activate
   else
-    echo "precisa Node 22+ com corepack/pnpm" >&2
+    echo "precisa Node 24 com corepack/pnpm" >&2
     exit 1
   fi
 fi
 
-pnpm install
+pnpm install --frozen-lockfile
 
 mkdir -p .claude .cursor
 if [[ ! -e .claude/skills ]]; then
@@ -24,12 +24,9 @@ if [[ ! -e .cursor/mcp.json ]]; then
   ln -s ../.mcp.json .cursor/mcp.json
 fi
 
-if [[ ! -f .env && -f .env.example ]]; then
-  cp .env.example .env
-fi
-
 echo "init ok"
-echo "  app:     pnpm dev            → http://127.0.0.1:43123"
+echo "  setup:   pnpm run setup (prepara banco e migrations locais)"
+echo "  app:     pnpm dev → use o endereço impresso; exemplos em /referência"
 echo "  loop:    pnpm test:loop"
 echo "  gate:    pnpm check:quick"
-echo "  Linear:  {{LINEAR_TEAM}} — docs/process/linear-conventions.md"
+echo "  guia:    README.md — comece pelo pedido do projeto, sem ferramenta de tarefas obrigatória"

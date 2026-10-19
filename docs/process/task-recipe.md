@@ -1,14 +1,14 @@
 # Receita da tarefa
 
-Copie arquivos. Detalhe: [spec-execution.md](spec-execution.md). Skill: [feature-from-issue](../../.agents/skills/feature-from-issue/SKILL.md).
+Comece pelo pedido e pelo resultado esperado. Detalhe: [spec-execution.md](spec-execution.md). Skill: [develop-feature](../../.agents/skills/develop-feature/SKILL.md).
 
 ## 1. Antes do código
 
-1. Item Linear: um objetivo.
-2. Copie `docs/specs/_templates/` → `docs/specs/<slug>/`.
-3. Escreva o `it('…')` dono **antes** da implementação.
-4. Invariante → `tests/property/` (`fast-check`, seed fixa). Exemplo → `tests/unit/`.
-5. Restate o critério de pronto em `tasks.md`.
+1. Defina um objetivo e um critério observável de pronto no pedido ou no plano local. Link externo é opcional; nenhuma ferramenta de tarefas é necessária.
+2. Para uma feature com decisões ou várias etapas, copie `docs/specs/_templates/` → `docs/specs/<slug>/`. Uma correção pequena pode registrar objetivo e validação no PR ou em `docs/plans/progress.md`.
+3. Mantenha um objetivo por branch/PR, com nome descritivo. Branch criada pelo Codex usa `codex/<slug>`; não é necessário um ID externo.
+4. Para comportamento novo, escreva o `it('…')` dono **antes** da implementação. Invariante → `tests/property/` (`fast-check`, seed fixa). Exemplo → `tests/unit/`.
+5. Se houver spec, registre o critério de pronto e o teste dono em `tasks.md`.
 
 ## 2. Camada e teste dono
 
@@ -33,4 +33,4 @@ Depois de cada edição no núcleo: `test:loop`.
 
 ## 4. Encerrar
 
-Validation Log (incluindo o que **não** foi verificado). PR com o template. Título cita o item.
+Registre a validação, incluindo o que **não** foi verificado. Quando abrir PR, use o template e um título que descreva o resultado. Conclua o plano local conforme a evidência; não é necessário fechar uma tarefa externa.

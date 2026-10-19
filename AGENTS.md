@@ -2,7 +2,7 @@
 
 Mapa do repo para o agente. Manual: [docs/index.md](docs/index.md). Docs em **pt-BR**; código em inglês. Clone limpo: não carregue skill pessoal.
 
-O arquivo **mais próximo** do path editado vence ([agents.md](https://agents.md/) · Codex concatena raiz → cwd). Aninhado só onde a regra muda: [packages/money/AGENTS.md](packages/money/AGENTS.md), [apps/sample/AGENTS.md](apps/sample/AGENTS.md), [scripts/harness/AGENTS.md](scripts/harness/AGENTS.md).
+O arquivo **mais próximo** do path editado vence ([agents.md](https://agents.md/) · Codex concatena raiz → cwd). Aninhado só onde a regra muda: [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md), [packages/ui/AGENTS.md](packages/ui/AGENTS.md), [scripts/harness/AGENTS.md](scripts/harness/AGENTS.md).
 
 ## Onde está
 
@@ -14,33 +14,43 @@ O arquivo **mais próximo** do path editado vence ([agents.md](https://agents.md
 | Trabalho longo (passes) | [docs/plans/feature-list.json](docs/plans/feature-list.json) + [progress.md](docs/plans/progress.md) |
 | Spec da feature | [docs/specs/](docs/specs/) (`requirements` / `design` / `tasks`) |
 | Jornadas de UI | [docs/specs/feature-map.md](docs/specs/feature-map.md) |
-| Linear | [docs/process/linear-conventions.md](docs/process/linear-conventions.md) |
+| Do pedido à entrega | [docs/process/task-recipe.md](docs/process/task-recipe.md) |
 | Skills | [.agents/skills/](.agents/skills/) |
 
 ## Comandos (os mesmos no CI)
 
 ```
-bash scripts/init.sh     # VM / clone
-pnpm test:loop           # unit + property, sem DB
+pnpm run setup          # nome + confirmação; prepara o ambiente local
+pnpm run doctor         # diagnóstico sem alterações
+pnpm test:loop           # unit + property + UI, sem DB
 pnpm check:quick         # harness + lint + types + loop
 pnpm check:full          # + integração + e2e
-pnpm dev                 # http://127.0.0.1:43123
+pnpm dev                 # Vite + Fastify; porta exibida no terminal
 ```
 
 Aliases: `ci:quick` → `check:quick`. Sem npm/yarn. Sem `--no-verify`.
 
+## Produto e referência
+
+`/` começa com um guia substituível: implemente o produto em `apps/frontend/src/pages/HomePage.tsx`.
+`/referência` (alias `/referencia`) contém exemplos e componentes. Consulte
+[apps/frontend/AGENTS.md](apps/frontend/AGENTS.md); não desenvolva o produto na galeria.
+Para IA: `pnpm run setup -- --config renova.project.json --plan --json`, depois
+`--yes --json` para preparar localmente. `pnpm run doctor -- --json` não modifica
+arquivos. Login e Railway continuam etapas futuras; não simule sua disponibilidade.
+
 ## Inegotiável
 
-- Um item Linear (`{{LINEAR_TEAM}}`) → branch `{{ISSUE_PREFIX}}-NN-slug` → um PR.
+- Um objetivo claro por alteração; use o pedido do usuário ou a spec local. Ferramenta de tarefas e ID externo são opcionais, inclusive em PRs. Branch descritiva (`codex/<slug>` quando criada pelo Codex).
 - Não enfraqueça teste, timeout, asserção ou regra do harness para o CI passar.
-- Não decida produto sozinho (preço, permissão, apagar dado). Anote no item e pare.
+- Não decida produto sozinho (preço, permissão, apagar dado). Registre a dúvida no plano ou na conversa e confirme com o usuário antes da parte dependente.
 - Tela: skill `verify-app`. Unitário com fake-api não fecha jornada.
 - Pronto = comando verde + o que **não** foi verificado escrito. O texto do agente não é o veredito.
 - Segredo fora do Git. MCP em [`.mcp.json`](.mcp.json) com `${VAR}`.
 
 ## Skills (corpo só sob demanda)
 
-- [`feature-from-issue`](.agents/skills/feature-from-issue/SKILL.md) — item → spec → PR
+- [`develop-feature`](.agents/skills/develop-feature/SKILL.md) — pedido → implementação validada
 - [`verify-app`](.agents/skills/verify-app/SKILL.md) — sobe o app e anda o feature map
 - [`failure-to-rule`](.agents/skills/failure-to-rule/SKILL.md) — erro repetido → teste, lint ou regra
 
@@ -55,7 +65,7 @@ Formatação: husky + hook Claude `PostToolUse`. Gate: pre-push `check:quick`. P
 ## Sessão longa
 
 1. `pwd`, `git log`, [progress.md](docs/plans/progress.md), [feature-list.json](docs/plans/feature-list.json).
-2. Uma feature. Só mude `passes` no JSON — não apague item.
+2. Uma feature. Cadastre o objetivo do projeto no JSON; só marque `passes` com evidência. Não herde resultados de outro projeto.
 3. Commit limpo + nota em progress.md.
 
 Revisor em **contexto fresco**, não o autor. PR: [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md).

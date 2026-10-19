@@ -1,6 +1,6 @@
 # HANDOFF: {{FEATURE}}
 
-Para a próxima sessão (contexto fresco). Sem status de sprint — isso é Linear.
+Para a próxima sessão (contexto fresco). Registre o ponto de retomada; o andamento das etapas fica em `tasks.md`.
 
 ## O que está pronto
 
