@@ -69,6 +69,15 @@ operacional e 2 configuração inválida.
 - `packages/dbmigrator`: migrations versionadas; acrescente uma nova, não edite a aplicada.
 - `packages/db-types`: tipos de tabelas confrontados pelos testes com o schema real.
 
+Ao criar seu produto, adapte também os testes e a documentação dos exemplos
+substituídos. O teste da página inicial deve verificar sua nova jornada; ao criar
+tabelas, atualize os tipos e a lista esperada nos testes de banco. Se renomear um
+teste, atualize seu vínculo em `tasks.md`. As specs de
+[`renova-project-template`](docs/specs/renova-project-template/requirements.md)
+registram a origem da base, **não são um backlog obrigatório do seu projeto**:
+anote o comportamento substituído e a nova spec, preservando os relatórios
+históricos. Mantenha as verificações de segurança e os gates.
+
 O usuário runtime do banco apenas lê dados. Para introduzir escrita ou informação
 privada, defina a política da feature e suas permissões antes de ampliar os acessos.
 O perfil com login será separado, com contas liberadas pelo responsável, sem cadastro público.
