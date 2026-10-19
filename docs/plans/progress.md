@@ -2,6 +2,19 @@
 
 Cada sessão longa acrescenta um bloco no topo. Não apague histórico.
 
+## 2026-10-19 — merge e clone de outro projeto
+
+- PR #1 mergeada em `5a6ea26`; template privado habilitado no GitHub.
+  CI Blacksmith verde tanto na PR quanto na main, 212 testes.
+- Clone real do remoto, agente em contexto novo e setup interativo com nome/confirmar.
+  Catálogo independente com nova tabela, API tipada, busca/filtro e DS reutilizado.
+- Full do catálogo: **220/220**; repetição do setup preservou código, credenciais e
+  dados. Ambiente original preservado. [Evidências](../specs/renova-project-template/simplification-validation.md).
+- README esclarece adaptação dos contratos de exemplo e distingue plano de origem
+  do backlog do novo produto. Nenhum gerador, regra ou dependência adicional.
+- Ensaio de agente em macOS com ferramentas instaladas; autenticação, Railway,
+  CI em outro repositório e aceite humano não foram executados.
+
 ## 2026-10-19 — revisão da PR e gate final
 
 - PR #1 aberta; Blacksmith aprovou o commit `b26438c` (205 testes).
