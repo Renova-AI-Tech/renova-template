@@ -1,12 +1,12 @@
 # Spec → PR
 
-Proporcional: typo não ganha pasta. Feature que o agente implementa sozinho, sim. Conceito alinhado a Spec Kit / Kiro; **sem** o CLI deles.
+Proporcional: uma correção pequena registra objetivo e validação no PR ou em `docs/plans/progress.md`. Feature com decisões ou várias etapas ganha spec. Conceito alinhado a Spec Kit / Kiro; **sem** o CLI deles.
 
-## Item, pasta e PR
+## Objetivo, pasta e PR
 
-- Linear é a fonte do objetivo. “Para o desenvolvimento” aponta `docs/specs/<slug>/`.
-- Branch: `{{ISSUE_PREFIX}}-NN-slug`.
-- Título do PR cita **um** item. Merge fecha o item.
+- O pedido do usuário ou o plano local define o objetivo. A spec fica em `docs/specs/<slug>/`; link para uma tarefa externa é opcional.
+- Uma branch/PR por objetivo, com nome descritivo. Branch criada pelo Codex usa `codex/<slug>`.
+- O título do PR descreve o resultado, sem ID obrigatório. A conclusão fica registrada no plano e na validação local.
 
 ## Arquivos
 
@@ -19,7 +19,7 @@ Copie de [docs/specs/_templates/](../specs/_templates/requirements.md):
 | `tasks.md` | Ownership, Done when, Gate, Test (`it` + arquivo) |
 | `handoff.md` | Só se o trabalho cruzar sessões |
 
-Exemplo: [money-split](../specs/money-split/requirements.md).
+A [spec da base Renova](../specs/renova-project-template/requirements.md) mostra um trabalho grande; use os templates com detalhe proporcional à sua feature.
 
 ## REQ
 
@@ -46,5 +46,5 @@ REQ-001. WHEN <condição observável>
 ```
 ## Validation Log
 - Rodou: `pnpm test:loop`
-- Não verificou: E2E (item não toca tela)
+- Não verificou: E2E (mudança não toca tela)
 ```

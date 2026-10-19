@@ -1,12 +1,13 @@
-# Troque {{GITHUB_OWNER}} pelo usuário ou time que protege o harness.
-# Sem dono real o GitHub avisa e ignora — o valor abaixo é placeholder.
+# Opcional: descomente as regras e substitua @responsavel por um usuário/time real.
+# Sem regras ativas, CODEOWNERS não exige um responsável específico.
+# Os gates de CI e a revisão continuam descritos no manual do projeto.
 
-/AGENTS.md @{{GITHUB_OWNER}}
-/CLAUDE.md @{{GITHUB_OWNER}}
-/ARCHITECTURE.md @{{GITHUB_OWNER}}
-/harness.rules.mjs @{{GITHUB_OWNER}}
-/scripts/ @{{GITHUB_OWNER}}
-/docs/process/ @{{GITHUB_OWNER}}
-/.agents/skills/ @{{GITHUB_OWNER}}
-/.mcp.json @{{GITHUB_OWNER}}
-/.github/workflows/ @{{GITHUB_OWNER}}
+# /AGENTS.md @responsavel
+# /CLAUDE.md @responsavel
+# /ARCHITECTURE.md @responsavel
+# /harness.rules.mjs @responsavel
+# /scripts/ @responsavel
+# /docs/process/ @responsavel
+# /.agents/skills/ @responsavel
+# /.mcp.json @responsavel
+# /.github/workflows/ @responsavel

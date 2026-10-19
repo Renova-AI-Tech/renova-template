@@ -1,7 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const port = 43123;
-const baseURL = `http://127.0.0.1:${port}`;
+const baseURL = process.env.FRONTEND_URL;
+if (!baseURL || process.env.NODE_ENV !== 'test') {
+  throw new Error('Use pnpm test:e2e para provisionar um banco e portas exclusivos de teste.');
+}
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -23,10 +25,13 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: 'pnpm --filter @project/sample dev',
-    url: baseURL,
-    reuseExistingServer: true,
-    timeout: 60_000,
-  },
+  webServer: [
+    {
+      command: 'pnpm dev',
+      url: baseURL,
+      reuseExistingServer: false,
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 5000 },
+      timeout: 60_000,
+    },
+  ],
 });

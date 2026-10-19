@@ -3,6 +3,8 @@ dist
 build
 coverage
 .env
+.env.*
+!.env.example
 .env.local
 .env.*.local
 *.log
@@ -18,3 +20,4 @@ agent-tools
 *.tsbuildinfo
 .vite
 .cache
+.renova

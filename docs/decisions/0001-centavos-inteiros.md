@@ -1,6 +1,6 @@
 # ADR 0001 — Centavos inteiros
 
-- **Status:** aceito
+- **Status:** histórico do exemplo retirado em 19/10/2026; não é regra de domínio deste template
 - **Data:** 2026-10-15
 
 ## Contexto
@@ -14,5 +14,5 @@ Valores monetários neste sample são **centavos** `Number.isSafeInteger`. Perce
 ## Consequências
 
 - Recusar fração, `NaN` e overflow.
-- Propriedades em `tests/property/`. Contraexemplo pinado em `tests/unit/`.
+- O exemplo usava propriedades de conservação e contraexemplos; código e testes foram retirados com a aplicação financeira.
 - Trocar por Decimal/BigInt é mudança de ADR, não “ajuste local”.

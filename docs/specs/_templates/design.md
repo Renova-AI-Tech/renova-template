@@ -1,7 +1,6 @@
 # DESIGN: {{FEATURE}}
 
 - **Spec:** [requirements.md](./requirements.md)
-- **Item:** {{LINEAR_TEAM_KEY}}-NN
 
 ## Recorte
 

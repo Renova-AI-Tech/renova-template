@@ -1,71 +1,99 @@
-# Template de projeto (harness agent-first)
+# Base de projetos Renova
 
-Repositório-semente para novos projetos da **Renova AI Tech** (Gustavo Priebe). O agente lê [AGENTS.md](AGENTS.md); humanos leem este README.
+Monorepo independente com **React/Vite, Fastify, Postgres e design system Renova**.
+Cada projeto tem seu código, banco e credenciais próprios. O configurador prepara
+a base local sem exigir contas corporativas. Nesta etapa está disponível o perfil
+**sem login, somente leitura**. Login e publicação Railway seguem no
+[plano](docs/specs/renova-project-template/tasks.md).
 
-Stack: TypeScript, pnpm, Vitest, fast-check, Playwright, Biome. Docs em **português (pt-BR)**.
+## Começar
 
-## Hierarquia
-
-```
-AGENTS.md                 mapa curto (~100 linhas) — sempre injetado
-CLAUDE.md                 @AGENTS.md
-ARCHITECTURE.md           camadas e direção das dependências
-docs/index.md             qual doc responde o quê
-docs/specs/<slug>/        requirements, design, tasks
-docs/plans/               active, completed, feature-list.json, progress.md
-.agents/skills/           3 skills (padrão Agent Skills)
-.claude/skills            symlink → .agents/skills
-.mcp.json                 Linear + Playwright; segredos ${VAR}
-scripts/init.sh
-scripts/check-quick       lint + types + harness + unit/property
-scripts/check-full        + integração + e2e
-tests/{unit,property,integration,e2e}/
-packages/money            conta pura (sample)
-apps/sample               UI na porta 43123
-```
-
-`AGENTS.md` aninhado **só** onde a regra muda (`packages/money`, `apps/sample`, `scripts/harness`).
-
-## Como começar um projeto a partir disto
-
-1. Use este repo como template (GitHub “Use this template” / clone).
-2. `bash scripts/init.sh`
-3. Substitua os placeholders (busca no repo inteiro):
-
-| Placeholder | Significado |
-| --- | --- |
-| `{{PROJECT}}` | nome do produto |
-| `{{LINEAR_TEAM}}` | time Linear |
-| `{{LINEAR_TEAM_KEY}}` | prefixo do item (`REN-42`) |
-| `{{ISSUE_PREFIX}}` | prefixo da branch (`ren-42-slug`) |
-| `{{GITHUB_OWNER}}` | dono no CODEOWNERS |
-
-4. Renomeie o scope npm `@project` se quiser.
-5. Quando o app real existir, apague `apps/sample` e estenda `docs/specs/feature-map.md`.
-6. `LINEAR_API_KEY` no ambiente — nunca no Git. MCP: `.mcp.json`.
-
-## Comandos
+Pré-requisitos: **Node.js 24, pnpm 10.33.4 e Docker com Compose aberto**.
+Crie um repositório com “Use this template” no GitHub ou copie o clone para uma
+pasta própria. No terminal dessa pasta:
 
 ```bash
-pnpm install          # ou bash scripts/init.sh
-pnpm dev              # http://127.0.0.1:43123
-pnpm test:loop        # unit + property
-pnpm harness:check
-pnpm harness:test
-pnpm check:quick      # o mesmo script do CI / pre-push (alias: ci:quick)
-pnpm check:full       # + e2e (precisa Chromium)
+pnpm run setup
+pnpm dev
 ```
 
-## O que customizar vs. o que não mexer sem dono
+O configurador pede apenas o nome do projeto. Nesta versão, a base é
+**sem login** e **local**; outras opções só aparecerão quando estiverem disponíveis.
+Confira o resumo e confirme; ele instala as dependências,
+prepara o Postgres e aplica as migrations. Não é preciso editar `.env`.
+Não use `pnpm setup`: esse é um comando do próprio pnpm, por isso o `run` é necessário.
 
-**Customizar:** placeholders, `ARCHITECTURE.md`, specs, feature map, regras em `harness.rules.mjs`, time Linear.
+Abra o endereço mostrado pelo Vite. **A página `/` começa com um guia de primeiros passos**:
+explore a referência, descreva sua ideia para a IA e substitua o guia pelo seu produto. Para consultar exemplos e componentes instalados,
+abra **`/referência`** (também funciona `/referencia`) nesse mesmo endereço.
+A referência tem logo oficial, tokens, fontes e componentes Renova prontos para reutilizar.
 
-**CODEOWNERS protege:** `AGENTS.md`, `scripts/`, `docs/process/`, `harness.rules.mjs`, skills, CI. Não desligue regra para o PR passar — corrija a regra **e** o teste do harness.
+Se algo falhar, execute `pnpm run doctor`. O diagnóstico mostra o problema e a
+próxima ação sem alterar o projeto. Depois de corrigir a causa, repita o setup;
+ele preserva credenciais, código customizado e dados. Não apague volumes para resolver erros.
 
-## Skills
+Cada pasta recebe identidade, banco, volume e portas separados em `127.0.0.1`.
+Não copie `.env`, `.renova` ou volumes entre projetos e não copie `.env.example`.
+Depois de preparar o ambiente, mantenha o slug; o nome exibido pode mudar.
+Mover uma pasta configurada requer tratar sua identidade, não recriar o banco
+apagando os arquivos de controle. Consulte [operações](docs/process/operations.md).
 
-Cursor lê `.agents/skills/`. Claude Code lê `.claude/skills` (symlink). Não copie o corpo para `.cursor/skills`.
+## Trabalhar com IA ou sem perguntas
 
-- `feature-from-issue`
-- `verify-app`
-- `failure-to-rule`
+Peça à IA para ler [AGENTS.md](AGENTS.md). Parta do `renova.project.json` deste clone,
+altere somente nome/slug antes do primeiro setup e preserve o campo `origin`.
+Você também pode fornecer uma cópia desse JSON com `--config caminho.json`.
+
+```bash
+pnpm run setup -- --config renova.project.json --plan --json
+pnpm run setup -- --config renova.project.json --yes --json
+pnpm run doctor -- --json
+pnpm dev
+```
+
+`--plan` apenas mostra arquivos e conflitos. `--yes` autoriza a preparação local;
+não publica nada. Fora de um terminal interativo, `--config` é obrigatório e
+aplicar exige `--yes`. O JSON direto do script tem `schemaVersion: 1`, estado e
+próximas ações; `pnpm --silent run doctor -- --json` remove o cabeçalho do pnpm
+quando precisar capturar apenas JSON. Códigos: 0 pronto/plano válido, 1 falha
+operacional e 2 configuração inválida.
+
+## Desenvolver
+
+- `apps/frontend/src/pages/HomePage.tsx`: substitua o guia pelo produto na rota `/`.
+- `apps/frontend/src/pages/ReferencePage.tsx` e `src/reference/ReferenceGallery.tsx`:
+  exemplos em `/referência`. Consulte e reutilize; não desenvolva o produto na galeria.
+- `apps/frontend/src/App.tsx`: acrescente aqui as rotas do produto.
+- `packages/ui`: 22 componentes, tokens e fontes locais; importe de `@renova/ui`.
+- `apps/backend`: API Fastify/tRPC. Toda operação declara a política de acesso.
+- `packages/dbmigrator`: migrations versionadas; acrescente uma nova, não edite a aplicada.
+- `packages/db-types`: tipos de tabelas confrontados pelos testes com o schema real.
+
+O usuário runtime do banco apenas lê dados. Para introduzir escrita ou informação
+privada, defina a política da feature e suas permissões antes de ampliar os acessos.
+O perfil com login será separado, com contas liberadas pelo responsável, sem cadastro público.
+
+## Validar
+
+```bash
+pnpm check:quick                       # harness, lint, tipos, unit/property e UI
+pnpm exec playwright install chromium # primeira execução do navegador
+pnpm check:full                        # quick, build, integração real e E2E
+```
+
+Integração e E2E criam bancos descartáveis e portas exclusivas, sem usar o banco
+de desenvolvimento. `pnpm ci:local` é uma checagem parcial sem navegador.
+O workflow está configurado para **Blacksmith**, com todos os gates bloqueantes.
+A execução remota e as proteções de branch precisam ser verificadas no repositório
+destino; a instalação do App Blacksmith não é feita por este template.
+
+O agente começa em [AGENTS.md](AGENTS.md); o [manual](docs/index.md) contém comandos,
+arquitetura e evidências. Docs em pt-BR, código em inglês. As três skills do
+repositório acompanham o clone; não é necessário instalar skills pessoais.
+
+Para desenvolver, basta um pedido claro ou uma spec local. Nenhuma ferramenta de
+tarefas, conta ou ID externo é obrigatório, inclusive em PRs; links externos são
+opcionais. Siga a [receita da tarefa](docs/process/task-recipe.md).
+Se quiser revisão por responsáveis, descomente as regras de CODEOWNERS com usuários
+ou times reais. Os exemplos comentados não criam uma exigência para começar.
+Não há publicação ou conexão automática a um projeto Railway existente.

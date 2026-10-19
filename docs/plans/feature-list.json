@@ -1,41 +1,5 @@
 {
   "version": 1,
-  "note": "Só altere passes. Não apague nem reescreva itens. JSON resiste melhor a edição indevida (Anthropic, long-running agents).",
-  "features": [
-    {
-      "id": "money-split-conservation",
-      "category": "functional",
-      "description": "Repartir centavos conserva o total; resto na última parcela",
-      "spec": "docs/specs/money-split/requirements.md",
-      "steps": ["Rodar pnpm test:loop", "Confirmar propriedade de conservação verde"],
-      "passes": true
-    },
-    {
-      "id": "money-split-roundtrip",
-      "category": "functional",
-      "description": "Ida e volta BRL pt-BR ↔ centavos",
-      "spec": "docs/specs/money-split/requirements.md",
-      "steps": ["Rodar pnpm test:property"],
-      "passes": true
-    },
-    {
-      "id": "money-split-percent-once",
-      "category": "functional",
-      "description": "Percentual em bps arredonda uma vez no total, não por parcela",
-      "spec": "docs/specs/money-split/requirements.md",
-      "steps": [
-        "Rodar o contraexemplo pinado em tests/unit/money.test.ts",
-        "Rodar a propriedade correspondente"
-      ],
-      "passes": true
-    },
-    {
-      "id": "money-split-ui",
-      "category": "functional",
-      "description": "Na tela, R$ 100,00 em 3x mostra 33,33 / 33,33 / 33,34",
-      "spec": "docs/specs/feature-map.md",
-      "steps": ["pnpm dev", "Skill verify-app na jornada 1, ou pnpm test:e2e"],
-      "passes": true
-    }
-  ]
+  "note": "Cadastre aqui as features do seu projeto. Marque passes somente após validar; a lista começa vazia para não herdar funcionalidades ou resultados do antigo exemplo.",
+  "features": []
 }

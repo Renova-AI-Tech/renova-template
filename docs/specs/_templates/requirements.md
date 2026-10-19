@@ -1,6 +1,6 @@
 # SPEC: {{FEATURE}}
 
-- **Item:** {{LINEAR_TEAM_KEY}}-NN
+- **Referência externa (opcional):** <link, se houver; remova esta linha se não houver>
 - **Pasta:** `docs/specs/{{slug}}/`
 - **Status:** draft
 
@@ -10,7 +10,7 @@
 
 ## Out of Scope
 
-- <o que explicitamente não entra neste item>
+- <o que explicitamente não entra neste objetivo>
 
 ## Assumptions
 

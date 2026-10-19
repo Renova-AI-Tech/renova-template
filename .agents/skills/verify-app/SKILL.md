@@ -13,7 +13,9 @@ E2E é ground truth. Mãos + [feature-map.md](../../../docs/specs/feature-map.md
 pnpm dev
 ```
 
-http://127.0.0.1:43123 — [operations.md](../../../docs/process/operations.md).
+Use o endereço impresso pelo Vite: `/` é o produto, inicialmente com um guia substituível;
+`/referência` (alias `/referencia`) contém exemplos e componentes. Prepare antes
+com `pnpm run setup`. Veja [operations.md](../../../docs/process/operations.md).
 
 ## Andar
 
@@ -21,7 +23,7 @@ MCP Playwright em [`.mcp.json`](../../../.mcp.json) (`@playwright/mcp@0.0.83`).
 
 Para cada jornada do mapa tocada pelo item: rota do mapa, `data-testid` estável, oráculo do mapa. Screenshot no passo que falha. Sem `waitForTimeout`. Sem recarregar até passar.
 
-Sem MCP: `pnpm test:e2e` (mesmo mapa; CI não bloqueante).
+Sem MCP: `pnpm test:e2e` (mesmo mapa; CI bloqueante).
 
 ## Validation Log
 

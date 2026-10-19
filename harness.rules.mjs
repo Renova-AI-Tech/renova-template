@@ -3,7 +3,6 @@
  * Ligar/desligar aqui. Sem invariante de domínio de cliente.
  */
 export default {
-  project: '{{PROJECT}}',
   ignoreDirectories: [
     'node_modules',
     'dist',
