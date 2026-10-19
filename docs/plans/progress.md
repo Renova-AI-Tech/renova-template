@@ -2,6 +2,18 @@
 
 Cada sessão longa acrescenta um bloco no topo. Não apague histórico.
 
+## 2026-10-19 — revisão da PR e gate final
+
+- PR #1 aberta; Blacksmith aprovou o commit `b26438c` (205 testes).
+- Revisão remota gerou correções pequenas no DS: largura da sidebar sem provider
+  e fallback da legenda. Origem divergente em escrita sem cookie passou a ser recusada;
+  chamadas públicas sem Origin e proteção CSRF com cookie mantidas.
+- Revisão independente sem achados; largura real conferida em navegador.
+  Full após correções: **212/212**, lint/types/build verdes.
+- Testes de migrations acompanham quantidade/versão do manifesto; uma nova tabela
+  não deve exigir alterar expectativas fixas do motor. Proteções preservadas.
+- CI do commit final será reconferido antes do merge; clone de ensaio vem depois.
+
 ## 2026-10-19 — simplificação e preparação da PR
 
 - Configurador pede somente nome e confirmação; JSON mantém rejeição de opções

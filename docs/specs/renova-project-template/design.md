@@ -232,7 +232,7 @@ Não devem ser apresentados ao iniciante como opções para desativar proteção
 | Roubo/fixação de sessão | Sessão no servidor; cookie HttpOnly, Secure em produção, SameSite=Lax na topologia de mesma origem; sem Domain amplo | Login renova identidade; logout/recuperação invalida; token ausente no localStorage |
 | Sessão ilimitada | Expiração absoluta proposta de 8 h; tokens de ativação/recuperação 15 min e uso único | Relógio controlado e replay recusado |
 | Senha fraca/abuso | Biblioteca mantida; senha 15–128 caracteres sem truncamento; login com resposta genérica | Limites de tamanho e conta inexistente; hashing validado pela biblioteca |
-| CSRF/origem falsa | Allowlist exata, verificação de origem e token CSRF nas mutations com cookie; não confiar em CORS como auth | 403 sem efeito no DB na origem maliciosa; testar tRPC e handler auth |
+| CSRF/origem falsa | Recusar Origin presente e divergente em escritas; com cookie, exigir origem exata e prova CSRF. Chamada pública sem Origin continua permitida; isso não autentica clientes nem usa CORS como auth | 403 sem efeito no DB na origem maliciosa; testar tRPC e handler auth |
 | XSS/exposição de front | React escapando texto, sem HTML arbitrário; CSP por ambiente testada, nosniff e Referrer-Policy | Payload vira texto; CSP permite apenas recursos previstos |
 | Abuso de API | Body máximo 1 MiB, 120 req/min/IP geral; login 5 tentativas/15 min por conta e IP; 429 com Retry-After | 413/429 determinísticos; rate limit de auth persistente entre reinícios |
 | Exaustão/SQL | Zod no servidor, queries parametrizadas, paginação até 100; timeout de consulta 5 s | Entrada inválida 400; DB cancela consulta; nenhuma concatenação de entrada em SQL |

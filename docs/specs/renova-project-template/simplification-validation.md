@@ -32,8 +32,21 @@ readiness independente da demonstração, revisão da entrega, PR/merge e clone 
 - Os 17 testes exclusivos do exemplo retirado deixaram a suíte com ele. Dois
   testes de propriedade do manifesto e duas regressões de integração foram adicionados;
   as 14 novas variações de nomes entraram após o primeiro full. Nenhuma proteção foi relaxada.
-- CI remoto será conferido na PR para o commit publicado. O clone de outro projeto
-  será ensaiado após o merge e terá registro próprio; este relatório não o antecipa.
+- Blacksmith aprovou quality/full/required no commit `b26438c`, com 205 testes.
+  A revisão remota encontrou duas falhas de reutilização no DS, corrigidas: largura
+  padrão da sidebar sem provider e nome da série quando a legenda não define label.
+  Navegador real confirmou 272 px sem provider e 320 px com override; UI passou em 17 testes.
+- Escritas agora recusam Origin presente divergente mesmo sem cookie; chamadas
+  públicas sem Origin continuam permitidas. Cookies continuam exigindo origem e prova
+  CSRF. Cinco novos casos HTTP/tRPC passaram; isso não implementa autenticação.
+- Após essas correções, `pnpm check:full` passou em **212 testes**: 37 harness,
+  50 unit/property, 17 UI, 94 integração e 14 navegador, além de lint/types/build.
+- As expectativas de quantidade/versão nos testes de migrations acompanham o
+  manifesto, permitindo acrescentar migrations sem falso negativo por total fixo.
+  Asserções de dados, permissões, checksum, rollback e identidade foram preservadas;
+  os nove testes focados passaram novamente após esse ajuste.
+- CI remoto será reconferido no commit final da PR. O clone de outro projeto será
+  ensaiado após o merge e terá registro próprio; este relatório não o antecipa.
 
 ## Limites
 

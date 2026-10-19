@@ -66,7 +66,7 @@ function Sidebar({
       data-variant={variant}
       data-side={side}
       className={cn(
-        'peer flex h-full min-h-0 w-(--sidebar-width) shrink-0 flex-col bg-sidebar text-sidebar-foreground',
+        'peer flex h-full min-h-0 w-[var(--sidebar-width,17rem)] shrink-0 flex-col bg-sidebar text-sidebar-foreground',
         className,
       )}
       {...props}

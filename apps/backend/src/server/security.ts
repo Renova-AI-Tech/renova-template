@@ -21,10 +21,15 @@ export function registerSecurity(app: FastifyInstance, options: SecurityOptions)
   });
 
   app.addHook('onRequest', async (request, reply) => {
-    if (['GET', 'HEAD', 'OPTIONS'].includes(request.method) || !request.headers.cookie) return;
+    if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return;
+    const origin = request.headers.origin;
+    if (origin !== undefined && origin !== options.origin) {
+      return reply.code(403).send({ error: 'Forbidden.', requestId: request.id });
+    }
+    if (!request.headers.cookie) return;
     const token = request.headers['x-csrf-token'];
     const valid =
-      request.headers.origin === options.origin &&
+      origin === options.origin &&
       typeof token === 'string' &&
       token.length > 0 &&
       ((await options.verifyCsrf?.(request, token)) ?? false);

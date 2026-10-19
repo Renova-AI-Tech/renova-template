@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Fragment } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { ChartContainer, ChartTooltipContent } from './chart';
+import { ChartContainer, ChartLegendContent, ChartTooltipContent } from './chart';
 
 vi.mock('recharts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('recharts')>();
@@ -11,6 +11,25 @@ vi.mock('recharts', async (importOriginal) => {
     ...actual,
     ResponsiveContainer: ({ children }: { children: ReactNode }) => <Fragment>{children}</Fragment>,
   };
+});
+
+describe('ChartLegendContent', () => {
+  it.each([
+    { label: undefined, expected: 'Receita' },
+    { label: 'Receita mensal', expected: 'Receita mensal' },
+  ])('renders the series name unless a label is configured: $expected', ({ label, expected }) => {
+    const markup = renderToStaticMarkup(
+      <ChartContainer config={{ revenue: { color: 'var(--primary)', label } }}>
+        <ChartLegendContent
+          payload={[
+            { dataKey: 'revenue', value: 'Receita', color: 'var(--primary)', type: 'square' },
+          ]}
+        />
+      </ChartContainer>,
+    );
+
+    expect(markup).toContain(`${expected}</div>`);
+  });
 });
 
 describe('ChartTooltipContent', () => {

@@ -58,6 +58,51 @@ describe('API security', () => {
     expect(writes).toBe(0);
   });
 
+  it.each(['https://attacker.example', 'null', ''])(
+    'nega escrita HTTP e tRPC sem cookie com origem indevida: %s',
+    async (origin) => {
+      let writes = 0;
+      const app = await application({
+        router: router({ write: publicProcedure.mutation(() => ++writes) }),
+      });
+      app.post('/write', { config: { accessPolicy: 'public' } }, async () => ++writes);
+      for (const url of ['/write', '/api/trpc/write']) {
+        const response = await app.inject({
+          method: 'POST',
+          url,
+          payload: '{}',
+          headers: { origin, 'content-type': 'application/json' },
+        });
+        expect(response.statusCode).toBe(403);
+      }
+      expect(writes).toBe(0);
+    },
+  );
+
+  it.each([undefined, env.FRONTEND_URL])(
+    'permite escrita publica sem cookie com origem ausente ou autorizada: %s',
+    async (origin) => {
+      let writes = 0;
+      const app = await application({
+        router: router({ write: publicProcedure.mutation(() => ++writes) }),
+      });
+      app.post('/write', { config: { accessPolicy: 'public' } }, async () => ++writes);
+      for (const url of ['/write', '/api/trpc/write']) {
+        const response = await app.inject({
+          method: 'POST',
+          url,
+          payload: '{}',
+          headers: {
+            ...(origin ? { origin } : {}),
+            'content-type': 'application/json',
+          },
+        });
+        expect(response.statusCode).toBe(200);
+      }
+      expect(writes).toBe(2);
+    },
+  );
+
   it('nega cookie sem origem ou prova CSRF e nao presume sessao valida', async () => {
     let writes = 0;
     const app = await application({

@@ -5,6 +5,7 @@ import { checkReadiness, migrations, runMigrations } from '../../packages/dbmigr
 import { createTestDatabase, stopTestDatabase } from '../../scripts/db/local.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
+const latestMigrationId = migrations.at(-1)?.id ?? '';
 type Handle = Awaited<ReturnType<typeof createTestDatabase>>;
 const target = (handle: Handle) => ({
   connectionString: handle.env.MIGRATION_DATABASE_URL,
@@ -37,12 +38,12 @@ describe('migrations transacionais e readiness', () => {
     try {
       expect(await checkReadiness(runtime)).toBe(false);
       expect(await runMigrations(target(handle))).toEqual({
-        applied: 1,
-        version: '001_public_example',
+        applied: migrations.length,
+        version: latestMigrationId,
       });
       expect(await runMigrations(target(handle))).toEqual({
         applied: 0,
-        version: '001_public_example',
+        version: latestMigrationId,
       });
       expect(await checkReadiness(runtime)).toBe(true);
       const rows = await runtime.query(
@@ -72,7 +73,7 @@ describe('migrations transacionais e readiness', () => {
       runMigrations(target(handle)),
       runMigrations(target(handle)),
     ]);
-    expect(results.map((result) => result.applied).sort()).toEqual([0, 1]);
+    expect(results.map((result) => result.applied).sort()).toEqual([0, migrations.length]);
     const altered = migrations.map((migration) => ({
       ...migration,
       sql: `${migration.sql}\n-- changed`,
@@ -86,7 +87,7 @@ describe('migrations transacionais e readiness', () => {
       expect(await checkReadiness(runtime, altered)).toBe(false);
       expect(
         (await runtime.query('select count(*)::int as count from renova_meta.migrations')).rows,
-      ).toEqual([{ count: 1 }]);
+      ).toEqual([{ count: migrations.length }]);
     } finally {
       await runtime.end();
     }
@@ -102,17 +103,19 @@ describe('migrations transacionais e readiness', () => {
 
   it('mantém readiness ao remover o exemplo por uma nova migration válida', async () => {
     const handle = databases[3];
-    const evolved = [
-      ...migrations,
-      { id: '002_remove_example', sql: 'DROP TABLE public.public_example_records;' },
-    ];
+    // O sufixo mantém a migration de teste após a última do projeto, sem colisão.
+    const removeExample = {
+      id: `${latestMigrationId || '000'}_test_remove_example`,
+      sql: 'DROP TABLE public.public_example_records;',
+    };
+    const evolved = [...migrations, removeExample];
     const runtime = pool(handle);
     try {
       await runMigrations(target(handle));
       expect(await checkReadiness(runtime, evolved)).toBe(false);
       expect(await runMigrations(target(handle), evolved)).toEqual({
         applied: 1,
-        version: '002_remove_example',
+        version: removeExample.id,
       });
       expect(
         (await runtime.query("select to_regclass('public.public_example_records') as example"))
@@ -122,7 +125,7 @@ describe('migrations transacionais e readiness', () => {
       expect(await checkReadiness(runtime, migrations)).toBe(false);
       expect(await runMigrations(target(handle), evolved)).toEqual({
         applied: 0,
-        version: '002_remove_example',
+        version: removeExample.id,
       });
     } finally {
       await runtime.end();
@@ -134,7 +137,7 @@ describe('migrations transacionais e readiness', () => {
     const failing = [
       ...migrations,
       {
-        id: '002_failure',
+        id: `${latestMigrationId || '000'}_test_failure`,
         sql: 'CREATE TABLE public.partial_result(id int); SELECT missing_column FROM public.public_example_records;',
       },
     ];
@@ -151,7 +154,7 @@ describe('migrations transacionais e readiness', () => {
           )
         ).rows,
       ).toEqual([{ partial: null, example: null }]);
-      expect((await runMigrations(target(handle))).applied).toBe(1);
+      expect((await runMigrations(target(handle))).applied).toBe(migrations.length);
       expect(await checkReadiness(runtime)).toBe(true);
     } finally {
       await runtime.end();
