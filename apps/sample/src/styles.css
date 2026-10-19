@@ -1,0 +1,146 @@
+:root {
+  color-scheme: light;
+  --ink: #1c1408;
+  --paper: #f4ead7;
+  --panel: #fffaf1;
+  --line: #c9b48a;
+  --accent: #b45309;
+  --error: #9f1239;
+  --muted: #6b5744;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Times New Roman", serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(1200px 400px at 10% -10%, #fde68a55, transparent), var(--paper);
+  color: var(--ink);
+}
+
+.page {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  letter-spacing: -0.03em;
+  margin: 0.2rem 0 0.6rem;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.72rem;
+  color: var(--accent);
+  font-family: "Segoe UI", sans-serif;
+  margin: 0;
+}
+
+.lede {
+  margin: 0 0 1.75rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.panel {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: 1fr 7rem auto;
+  align-items: end;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1rem;
+  box-shadow: 4px 6px 0 #1c140814;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.field input {
+  font: inherit;
+  font-size: 1.15rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+}
+
+button {
+  font: inherit;
+  background: var(--ink);
+  color: var(--paper);
+  border: 0;
+  border-radius: 8px;
+  padding: 0.7rem 1.1rem;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--accent);
+}
+
+.error,
+.empty {
+  margin-top: 1rem;
+}
+
+.error {
+  color: var(--error);
+}
+
+.result {
+  margin-top: 1.5rem;
+  background: var(--panel);
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  padding: 1rem 1.1rem 0.4rem;
+}
+
+.result-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.result-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.rows {
+  list-style: none;
+  padding: 0;
+  margin: 0.8rem 0 0;
+}
+
+.rows li {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.7rem 0;
+  border-top: 1px solid #ead9b4;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .panel {
+    grid-template-columns: 1fr;
+  }
+
+  button {
+    width: 100%;
+  }
+}

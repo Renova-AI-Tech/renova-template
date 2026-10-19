@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# check-quick + integração (se houver) + E2E.
+# CI: job de qualidade chama check-quick; job E2E (não bloqueante) chama o Playwright.
+# Local sem browsers: SKIP_E2E=1 (alias pnpm ci:local).
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+bash scripts/check-quick
+
+shopt -s nullglob
+integration_tests=(tests/integration/**/*.test.ts)
+if ((${#integration_tests[@]} > 0)); then
+  echo "== integration"
+  pnpm exec vitest run --config vitest.loop.config.ts --dir tests/integration
+else
+  echo "== integration (nenhum arquivo — ok)"
+fi
+
+if [[ "${SKIP_E2E:-}" == "1" ]]; then
+  echo "== e2e skipped (SKIP_E2E=1)"
+  echo "check-full ok (sem e2e)"
+  exit 0
+fi
+
+echo "== e2e"
+pnpm test:e2e
+echo "check-full ok"
