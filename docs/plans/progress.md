@@ -2,6 +2,21 @@
 
 Cada sessão longa acrescenta um bloco no topo. Não apague histórico.
 
+## 2026-10-19 — autenticação opcional validada localmente
+
+- CI da main `e085504` confirmado verde: [run 39341572792](https://github.com/Renova-AI-Tech/renova-template/actions/runs/39341572792).
+- Usuário autorizou seguir com contas liberadas pelo responsável e sem cadastro
+  público, preservando o perfil sem login e validando cada etapa.
+- Recorte: perfil autenticado em clone novo, caixa de email local, ativação,
+  sessão, recuperação e exemplo privado por proprietário. A publicação Railway
+  e a adição automática a produto já personalizado continuam etapas separadas.
+- `pnpm test:profiles` verde: público 230 testes, autenticado 254, incluindo
+  22 E2E no perfil com login. Revisão independente sem bloqueadores após correções.
+- Setup/doctor/convite real em cópia nova e repetição preservando customização,
+  banco e segredos. [Evidências e limites](../specs/renova-project-template/auth-validation.md).
+- A PR e o CI remoto deste incremento serão conferidos no commit publicado;
+  o resultado local não é apresentado como validação Railway ou aceite humano.
+
 ## 2026-10-19 — merge e clone de outro projeto
 
 - PR #1 mergeada em `5a6ea26`; template privado habilitado no GitHub.

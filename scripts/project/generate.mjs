@@ -12,13 +12,24 @@ import {
   rmdir,
   writeFile,
 } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { isPendingLocalDatabaseFile } from '../db/local.mjs';
 import { parseProjectConfig } from './config.mjs';
+import { inspectParents, readAuthRecipe, verifyRecipeInputs } from './auth-recipe.mjs';
 
 const manifestPath = 'renova.project.json';
 const statePath = '.renova/project-state.json';
-const guardedPaths = [manifestPath, statePath, '.renova/db-state.json', '.env'];
+const authMarkerPath = '.renova/auth-install.json';
+const authPackagePath = 'packages/auth/package.json';
+const authMarker = `${JSON.stringify({ schemaVersion: 1, profile: 'authenticated' })}\n`;
+const guardedPaths = [
+  manifestPath,
+  statePath,
+  '.renova/db-state.json',
+  '.env',
+  authMarkerPath,
+  authPackagePath,
+];
 const plans = new WeakMap();
 const digest = (value) => createHash('sha256').update(value).digest('hex');
 const serialize = (value) => `${JSON.stringify(value, null, 2)}\n`;
@@ -40,11 +51,6 @@ export function requireSupportedConfig(input) {
       'Configuração inválida. Confira nome, identificador e campos de renova.project.json.',
     );
   }
-  if (config.profile !== 'public') {
-    throw new ProjectSetupError(
-      'O perfil com login será entregue na próxima etapa. Use sem login para começar localmente.',
-    );
-  }
   if (config.initialTarget !== 'local') {
     throw new ProjectSetupError(
       'A publicação no Railway será entregue em outra etapa. Escolha rodar localmente agora.',
@@ -55,10 +61,16 @@ export function requireSupportedConfig(input) {
 
 async function inspect(root, path, directory = false) {
   try {
+    await inspectParents(root, path);
     const stat = await lstat(join(root, path));
     let pendingLink = null;
-    if (!directory && stat.isFile() && stat.nlink === 2 && path === statePath) {
-      pendingLink = await pendingProjectState(root, stat);
+    if (
+      !directory &&
+      stat.isFile() &&
+      stat.nlink === 2 &&
+      ![manifestPath, '.env', '.renova/db-state.json'].includes(path)
+    ) {
+      pendingLink = await pendingProjectState(root, stat, path);
     }
     const pendingDatabaseLink =
       !directory &&
@@ -82,16 +94,27 @@ async function inspect(root, path, directory = false) {
     return { identity, hash: digest(content), content, mode: stat.mode & 0o777, pendingLink };
   } catch (error) {
     if (error.code === 'ENOENT') return null;
+    if (error.code === 'UNSAFE_PATH')
+      throw new ProjectSetupError(`O caminho ${path} precisa usar pastas próprias, sem links.`);
     if (error instanceof ProjectSetupError) throw error;
     throw new ProjectSetupError(`Não foi possível ler ${path}. Confira a permissão local.`, 1);
   }
 }
 
-async function pendingProjectState(root, stat) {
+async function pendingProjectState(root, stat, destination) {
   // Exceção limitada ao hardlink de publicação interrompida; nunca a links arbitrários.
-  for (const entry of await readdir(join(root, '.renova'), { withFileTypes: true })) {
+  let entries;
+  try {
+    entries = await readdir(join(root, '.renova'), { withFileTypes: true });
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
+  for (const entry of entries) {
     if (!entry.isDirectory() || !/^\.project-stage-[A-Za-z0-9]{6}$/.test(entry.name)) continue;
-    for (const name of ['0', '1']) {
+    for (const name of (await readdir(join(root, '.renova', entry.name))).filter((name) =>
+      /^\d+$/.test(name),
+    )) {
       const path = join(root, '.renova', entry.name, name);
       try {
         const staged = await lstat(path);
@@ -101,8 +124,11 @@ async function pendingProjectState(root, stat) {
           staged.dev === stat.dev &&
           staged.ino === stat.ino
         ) {
-          const parsed = JSON.parse(await readFile(path, 'utf8'));
-          if (validManagedState(parsed)) return path;
+          if (
+            destination !== statePath ||
+            validManagedState(JSON.parse(await readFile(path, 'utf8')))
+          )
+            return path;
         }
       } catch (error) {
         if (error.code !== 'ENOENT') return null;
@@ -112,10 +138,10 @@ async function pendingProjectState(root, stat) {
   return null;
 }
 
-async function inventory(root) {
+async function inventory(root, paths = guardedPaths) {
   const directory = await inspect(root, '.renova', true);
   const files = {};
-  for (const path of guardedPaths) files[path] = await inspect(root, path);
+  for (const path of paths) files[path] = await inspect(root, path);
   return { directory, files };
 }
 
@@ -139,7 +165,7 @@ function parseExistingManifest(entry) {
 function validManagedState(parsed) {
   return (
     parsed?.schemaVersion === 1 &&
-    parsed.profile === 'public' &&
+    ['public', 'authenticated'].includes(parsed.profile) &&
     Object.keys(parsed).length === 3 &&
     parsed.files &&
     Object.keys(parsed.files).length === 1 &&
@@ -147,13 +173,13 @@ function validManagedState(parsed) {
   );
 }
 
-function managedConflict(state, manifest, requestedHash) {
+function managedConflict(state, manifest, requestedHash, profile) {
   if (!state) return [];
   try {
     const parsed = JSON.parse(state.content.toString('utf8'));
     const expected = {
       schemaVersion: 1,
-      profile: 'public',
+      profile,
       files: { [manifestPath]: manifest.hash },
     };
     if (JSON.stringify(parsed) === JSON.stringify(expected)) return [];
@@ -192,7 +218,7 @@ export async function planProject(root, input) {
     throw new ProjectSetupError('A pasta do projeto não está acessível.', 1);
   }
   const rootIdentity = await inspect(canonicalRoot, '.', true);
-  const before = await inventory(canonicalRoot);
+  let before = await inventory(canonicalRoot);
   const existing = requireSupportedConfig(parseExistingManifest(before.files[manifestPath]));
   if (JSON.stringify(config.origin) !== JSON.stringify(existing.origin)) {
     throw new ProjectSetupError('A origem do template deve permanecer igual à origem deste clone.');
@@ -205,12 +231,75 @@ export async function planProject(root, input) {
       'Este projeto já tem ambiente local. Mantenha seu identificador para preservar o banco; o nome exibido pode mudar.',
     );
   }
-  const manifest = serialize(config);
+  if (existing.profile === 'authenticated' && config.profile !== existing.profile)
+    throw new ProjectSetupError(
+      'Remover login automaticamente não é permitido. O projeto foi preservado.',
+    );
+  const authState =
+    before.files[statePath] &&
+    (() => {
+      try {
+        const state = JSON.parse(before.files[statePath].content);
+        return validManagedState(state) && state.profile === 'authenticated';
+      } catch {
+        return false;
+      }
+    })();
+  const authPackage = before.files[authPackagePath];
+  if (authPackage) {
+    try {
+      if (JSON.parse(authPackage.content).name !== '@renova/auth') throw new Error();
+    } catch {
+      throw new ProjectSetupError('O pacote de login está inválido; conteúdo preservado.');
+    }
+  }
+  const marker = before.files[authMarkerPath];
+  if (marker && marker.hash !== digest(authMarker))
+    throw new ProjectSetupError(
+      'O registro da instalação de login está inválido; arquivos preservados.',
+    );
+  if (config.profile === 'public' && (marker || authState || authPackage))
+    throw new ProjectSetupError(
+      'A instalação de login foi iniciada. Retome com o perfil authenticated; não é seguro voltar automaticamente ao perfil público.',
+    );
+  if (authState && !authPackage)
+    throw new ProjectSetupError(
+      'O módulo de login instalado está incompleto. Restaure seus arquivos; o setup não sobrescreve personalizações.',
+    );
+  const installedAuth = existing.profile === 'authenticated' && Boolean(authPackage);
+  const installingAuth = config.profile === 'authenticated' && !installedAuth;
+  if (installingAuth && (before.files['.env'] || before.files['.renova/db-state.json']))
+    throw new ProjectSetupError(
+      'Este projeto já foi preparado. Adicionar login a um produto existente exige revisão de dados e permissões; nada foi alterado.',
+    );
+  let recipe;
+  if (installingAuth) {
+    try {
+      recipe = await readAuthRecipe(canonicalRoot);
+      before = await inventory(canonicalRoot, [
+        ...guardedPaths,
+        ...recipe.entries.map((entry) => entry.path),
+      ]);
+    } catch {
+      throw new ProjectSetupError(
+        'A receita de login está ausente, inválida ou contém caminhos inseguros. O projeto foi preservado.',
+      );
+    }
+  }
+  // The schema allows only [] or ["auth"]. Keep that array in the formatter's
+  // canonical form without requiring installed dependencies during bootstrap.
+  const manifest = serialize(config).replace(
+    '"capabilities": [\n    "auth"\n  ]',
+    '"capabilities": ["auth"]',
+  );
+  // Runtime and its exact lockfile are published before the profile can claim auth is installed.
   const contents = {
+    ...(installingAuth ? { [authMarkerPath]: authMarker } : {}),
+    ...Object.fromEntries((recipe?.entries ?? []).map((entry) => [entry.path, entry.content])),
     [manifestPath]: manifest,
     [statePath]: serialize({
       schemaVersion: 1,
-      profile: 'public',
+      profile: config.profile,
       files: { [manifestPath]: digest(manifest) },
     }),
   };
@@ -218,7 +307,18 @@ export async function planProject(root, input) {
     before.files[statePath],
     before.files[manifestPath],
     digest(manifest),
+    existing.profile,
   );
+  for (const entry of recipe?.entries ?? []) {
+    const hash = before.files[entry.path]?.hash ?? null;
+    if (hash !== entry.beforeSha256 && hash !== entry.afterSha256)
+      conflicts.push({
+        path: entry.path,
+        code: 'CUSTOMIZED_AUTH_TARGET',
+        message:
+          'O arquivo tem alterações próprias. Login só pode ser instalado automaticamente na base original; conteúdo preservado.',
+      });
+  }
   const reconcilesState =
     !conflicts.length &&
     before.files[manifestPath].hash === digest(manifest) &&
@@ -252,17 +352,31 @@ export async function planProject(root, input) {
         : ['Aplicar configuração local e verificar Docker antes de preparar o banco.'],
   };
   const plan = freeze({ ...description, planId: digest(JSON.stringify(description)) });
-  plans.set(plan, { root: canonicalRoot, rootIdentity, before, contents });
+  plans.set(plan, {
+    root: canonicalRoot,
+    rootIdentity,
+    before,
+    contents,
+    recipeInputs: recipe?.inputs ?? {},
+  });
   return plan;
 }
 
 async function revalidate(record, expectedDirectory = record.before.directory) {
   const currentRoot = await inspect(record.root, '.', true);
-  const current = await inventory(record.root);
+  const paths = Object.keys(record.before.files);
+  const current = await inventory(record.root, paths);
+  try {
+    await verifyRecipeInputs(record.root, record.recipeInputs);
+  } catch {
+    throw new ProjectSetupError(
+      'A receita mudou depois do plano. Gere outro plano antes de aplicar.',
+    );
+  }
   if (
     currentRoot?.identity !== record.rootIdentity?.identity ||
     current.directory?.identity !== expectedDirectory?.identity ||
-    guardedPaths.some(
+    paths.some(
       (path) =>
         current.files[path]?.hash !== record.before.files[path]?.hash ||
         current.files[path]?.identity !== record.before.files[path]?.identity,
@@ -333,6 +447,9 @@ export async function applyProject(plan) {
           'Um arquivo mudou durante o setup. Revise o projeto e tente novamente.',
         );
       }
+      await inspectParents(record.root, file.path);
+      await mkdir(dirname(join(record.root, file.path)), { recursive: true });
+      await inspectParents(record.root, file.path);
       const stagedPath = join(stage, String(index));
       if (destination) await rename(stagedPath, join(record.root, file.path));
       else await link(stagedPath, join(record.root, file.path));
@@ -368,11 +485,12 @@ export async function applyProject(plan) {
 }
 
 async function cleanPendingProjectState(record) {
-  const previous = record.before.files[statePath];
-  if (!previous?.pendingLink) return;
-  const stat = await lstat(previous.pendingLink);
-  if (stat.isFile() && `${stat.dev}:${stat.ino}` === previous.identity) {
-    await rm(previous.pendingLink);
-    await rmdir(join(previous.pendingLink, '..')).catch(() => {});
+  for (const previous of Object.values(record.before.files)) {
+    if (!previous?.pendingLink) continue;
+    const stat = await lstat(previous.pendingLink);
+    if (stat.isFile() && `${stat.dev}:${stat.ino}` === previous.identity) {
+      await rm(previous.pendingLink);
+      await rmdir(join(previous.pendingLink, '..')).catch(() => {});
+    }
   }
 }

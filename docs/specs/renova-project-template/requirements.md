@@ -2,7 +2,7 @@
 
 - **Origem:** pedido do usuário registrado em [context.md](context.md); sem item externo obrigatório.
 - **Pasta:** `docs/specs/renova-project-template/`.
-- **Status:** plano aprovado; base local, configurador/diagnóstico e separação da referência implementados e validados.
+- **Status:** plano aprovado; base local, configurador/diagnóstico e referência validados. Autenticação opcional local implementada, com T-015–T-019 validados localmente; Railway e T-030 permanecem futuros.
 - **Contexto:** [decisões e autorização](context.md).
 - **Fontes:** [pesquisa de mercado](research.md).
 
@@ -33,7 +33,7 @@ uma base independente, simples de iniciar, com escolhas pequenas e verificadas.
 | Copiar domínio, dados, credenciais e migrations BPO/CRM/Consulting | Projetos independentes |
 | Remover auth automaticamente ou sincronizar código customizado à força | Pode expor/apagar dados e destruir trabalho |
 | Garantia de segurança de futuras features ou certificação ASVS | A base oferece controles delimitados, não uma auditoria universal |
-| Alterações remotas nesta rodada | Autorização atual cobre implementação e validação locais |
+| Deploy e configuração de provedores nesta rodada | O incremento auth é local; Railway e email externo exigem etapa própria |
 
 ## Assumptions & Open Questions
 
@@ -43,21 +43,22 @@ uma base independente, simples de iniciar, com escolhas pequenas e verificadas.
 | Opções iniciais | Dois perfis, sem login/com login; capacidades depois | Resposta explícita nesta sessão | Sim |
 | Entrada de usuários | O responsável libera as contas; cadastro público fechado | Resposta explícita nesta sessão | Sim |
 | CI | GitHub Actions em runners Blacksmith | Pedido explícito nesta sessão | Sim; habilitação do App em cada repo ainda não verificada |
-| Stack mínima | Vite/React, Fastify/tRPC, Kysely/Postgres e TypeScript; Node 24/pnpm fixados | Reuso da base Renova; evita escolhas técnicas iniciais | Stack central sim; detalhes propostos |
-| Destino inicial | Local por padrão; Railway pode ser conectado depois | Reduz acesso/custo inicial | Proposta |
-| Sem login | Exemplo público somente leitura, sem diferença de permissão entre local/cloud | Evita ensinar CRUD aberto que seria publicado por acidente | Proposta |
-| Método de identidade na v1 | Email/senha, ativação/recuperação por email | Funciona sem SSO; entrada fechada já confirmada | Método proposto, decisão S0 antes de implementar auth |
-| Biblioteca de auth | Better Auth como candidato, após spike; uma implementação suportada | Integração oficial Fastify; não reinventar sessão | Proposta técnica sujeita a prova |
-| Email | Caixa local isolada; um provedor transacional aprovado para Railway | Uso local sem credenciais externas; produção com recuperação real | Proposta, seleção S0 |
-| Limites da API | Valores iniciais do design, revisáveis por política e testes | Limites observáveis, não números atribuídos à OWASP | Proposta |
+| Stack mínima | Vite/React, Fastify/tRPC, Kysely/Postgres e TypeScript; Node 24/pnpm fixados | Reuso da base Renova; evita escolhas técnicas iniciais | Implementada na base local |
+| Destino inicial | Local; Railway continua etapa futura | Reduz acesso/custo inicial | Implementado; publicação ainda indisponível |
+| Sem login | Exemplo público somente leitura; sem dependências, tabelas ou páginas de auth | Evita ensinar CRUD aberto que seria publicado por acidente | Implementado; comportamento remoto ainda depende do piloto |
+| Método de identidade local | Email/senha; responsável libera a conta por CLI, pessoa define senha por link | Funciona sem SSO e mantém cadastro público fechado | Implementado e validado no incremento local autorizado |
+| Biblioteca de auth | Better Auth 1.7.11; uma implementação suportada | Integração Fastify/Postgres e sessões próprias por projeto | Adotada no incremento local; decisão em [auth-spike.md](auth-spike.md) |
+| Email | Mailpit 1.31.6 isolado em loopback, sem relay; produção auth recusada | Uso local sem credenciais externas nem envio real | Implementado localmente; provedor remoto ainda pendente |
+| Limites da API | Valores explícitos do design, revisáveis por política e testes | Limites observáveis, não números atribuídos à OWASP | Implementados; verificação por requisito e perfil |
 | Plataformas locais | macOS, Linux e Windows por WSL2, com Node/pnpm e Docker disponíveis | Comportamento verificável sem prometer suporte nativo Windows | Proposta |
 | Gestão de tarefas | Pedido/spec local; ferramenta e ID externos opcionais, inclusive em PRs | Cada pessoa pode usar o template sem outra conta ou integração | Sim; remoção autorizada para este repo e seus clones |
 | Governança e custo | Responsável, workspace, budget e disponibilidade de checks definidos antes de publicar | Não inferir destino corporativo nem gasto autorizado | Pendente operacional; bloqueia apenas etapa remota |
 | Atualização | Origem/versionamento e PRs revisados; sem atualização automática de código do produto | Preserva independência e WIP | Proposta |
 
-**Open questions: none** sem tratamento: escolhas não confirmadas estão
-registradas como propostas acima. Isso não equivale à aprovação delas. S0 no
-plano fecha método de login/email e escopo; a publicação fecha destino/acessos.
+A implementação local usa email/senha e Mailpit; não oferece escolha de provedor
+a quem inicia o projeto. Destino, acessos, custos e entrega de email em produção
+continuam pendentes da etapa remota. O gate final deste incremento não equivale
+a aceite humano ou aprovação de publicação no Railway.
 
 ## User Stories
 
@@ -69,7 +70,7 @@ começar a desenvolver sem montar o monorepo. Teste independente: clone limpo se
 **Acceptance Criteria**:
 
 1. WHEN um projeto é configurado THEN o configurador SHALL produzir workspaces frontend, backend, UI, migrations e tipos de banco independentes do repositório Renova de origem. (REQ-001)
-2. WHEN o assistente interativo inicia THEN ele SHALL solicitar o nome e apresentar resumo antes da confirmação; enquanto só sem login/local estiver disponível, SHALL informar esses padrões sem perguntas adicionais, oferecendo perfil/destino apenas quando houver alternativas implementadas. (REQ-002)
+2. WHEN o assistente inicia em clone novo THEN ele SHALL solicitar nome e perfil (sem login por padrão ou contas liberadas pelo responsável), apresentar resumo e pedir confirmação; em projeto já preparado SHALL preservar o perfil, sem perguntas sobre ORM, biblioteca ou destino ainda indisponível. (REQ-002)
 3. IF o manifesto contém campo desconhecido, versão incompatível, nome inválido ou combinação não suportada THEN o configurador SHALL terminar com código 2 sem alterar arquivos. (REQ-003)
 4. WHERE o destino é local THEN setup/dev SHALL funcionar sem credenciais GitHub, Railway, Sentry, email externo ou ferramenta de tarefas. (REQ-004)
 5. WHEN setup é repetido com a mesma configuração THEN ele SHALL preservar arquivos customizados, segredos e dados já existentes. (REQ-005)
@@ -87,7 +88,7 @@ Teste independente: abrir catálogo e implementar uma alteração no exemplo.
 1. WHEN o frontend abre THEN ele SHALL carregar componentes, tokens e fontes Renova pelo pacote UI, sem depender do CSS de outro aplicativo. (REQ-009)
 2. WHEN o catálogo é percorrido THEN ele SHALL demonstrar navegação, formulário, drawer e estados vazio/erro/carregando/sucesso em desktop e viewport de 390 px, com operação por teclado. (REQ-010)
 3. WHEN uma IA recebe o clone e um pedido de feature THEN o repositório SHALL fornecer arquitetura, comandos, exemplos e critérios de verificação sem depender de memória ou skill pessoal do mantenedor; pedido/spec local SHALL bastar para iniciar e nenhum ID ou serviço externo de tarefas SHALL ser exigido, inclusive em PRs. (REQ-011)
-4. WHEN a pessoa abre `/` THEN a aplicação SHALL mostrar um guia simples e substituível de primeiros passos, com acesso à referência e orientação para criar o produto, sem catálogo, dados demonstrativos ou chamada à API. (REQ-041)
+4. WHEN a pessoa abre `/` no perfil público ou após validar a sessão no perfil com login THEN a aplicação SHALL mostrar um guia simples e substituível, com acesso à referência e orientação para criar o produto, sem catálogo, dados demonstrativos ou consulta à API de negócio; no perfil com login, uma sessão válida SHALL ser exigida antes de mostrar o guia. (REQ-041)
 5. WHEN a pessoa abre `/referência` diretamente ou atualiza essa página THEN ela SHALL acessar a demonstração e os componentes Renova, com logo oficial incorporada, navegação acessível e layout responsivo; `/referencia` SHALL oferecer o mesmo acesso sem acento. (REQ-042)
 6. WHEN humanos ou IA consultam as instruções THEN elas SHALL indicar a página inicial como área do produto e `/referência` como exemplos reutilizáveis, sem orientar implementação de funcionalidades dentro da demonstração. (REQ-043)
 
@@ -104,7 +105,7 @@ independente: gerar cada perfil e testar acesso diretamente na API.
 4. WHEN a sessão expira, ocorre logout ou a credencial é recuperada THEN o servidor SHALL rejeitar a sessão revogada em nova requisição protegida. (REQ-015)
 5. WHERE uma operação acessa registro de usuário THEN o backend SHALL restringir a operação ao proprietário autenticado, inclusive em requisições com identificador de outro usuário. (REQ-016)
 6. IF uma mutation com cookie recebe origem não autorizada ou prova CSRF inválida THEN o backend SHALL rejeitá-la com 403 antes de qualquer escrita. (REQ-017)
-7. WHERE auth não foi selecionado THEN o projeto gerado SHALL omitir dependências runtime, páginas, endpoints, tabelas e segredos desse módulo, mantendo somente a receita de instalação posterior. (REQ-018)
+7. WHERE auth não foi selecionado THEN o projeto gerado SHALL omitir dependências runtime, páginas, endpoints, tabelas e segredos desse módulo, mantendo somente sua receita fora dos workspaces; a seleção local disponível SHALL ocorrer em clone novo antes do ambiente, e a adição a produto existente SHALL permanecer reservada a P2. (REQ-018)
 
 ### P1: manter os controles mínimos
 
@@ -115,7 +116,7 @@ Teste independente: suíte negativa com entradas, alvos e configurações proibi
 
 1. IF entrada, conteúdo, tamanho ou frequência excede o contrato da API THEN ela SHALL rejeitar a chamada antes de executar o caso de uso, conforme limites e respostas definidos no design. (REQ-019)
 2. WHEN ocorre erro na aplicação THEN a resposta e os logs SHALL excluir senha, cookie, token, corpo sensível, string de conexão e stack pública, preservando identificador de correlação. (REQ-020)
-3. IF produção contém segredo ausente/default, origem curinga, cookie inseguro, fixture privada ou módulo inconsistente THEN o startup e o preflight SHALL recusar a configuração. (REQ-021)
+3. IF produção contém segredo ausente/default, origem curinga, cookie inseguro, fixture privada ou módulo inconsistente THEN o startup e o preflight SHALL recusar a configuração; enquanto entrega remota de email não estiver implementada e validada, o perfil autenticado SHALL recusar qualquer startup em produção. (REQ-021)
 4. WHEN migrations executam THEN o runner SHALL serializar aplicação e preservar histórico aplicado, sem reset, rollback destrutivo ou alteração silenciosa de migration existente. (REQ-022)
 5. IF teste ou reset recebe alvo que não é banco descartável explicitamente permitido THEN o comando SHALL encerrar antes de conectar para escrita. (REQ-023)
 6. WHEN um pacote, bundle, imagem, relatório ou arquivo versionado é produzido THEN o gate de entrega SHALL detectar e rejeitar os segredos sintéticos usados como sentinelas de vazamento. (REQ-024)
@@ -192,12 +193,14 @@ primeira fatia local. Não anunciar adição posterior automática antes de P2 p
 
 ## Requirement Traceability
 
-Todos os testes abaixo são planejados, não existentes nem executados. A tarefa
-inclui o teste na mesma entrega. Estado de todos os requisitos: Pending.
+A tabela relaciona implementações existentes e contratos de etapas futuras.
+Paths sob `templates/modules/auth/files/` são a fonte dos testes materializados
+no projeto autenticado. Existência do teste não comprova execução: status e
+evidência ficam nas tarefas e nos relatórios de validação.
 
 | REQ | Tarefas donas | Teste/comportamento dono |
 | --- | --- | --- |
-| REQ-001 | T-002, T-006, T-010, T-019 | Estrutura gerada e contrato API em `tests/profiles/generation.test.ts` |
+| REQ-001 | T-002, T-006, T-010, T-019 | Composição em `tests/integration/auth-composition.test.ts`; clones independentes pelo runner `scripts/project/test-profiles.mjs` |
 | REQ-002 | T-001, T-012 | Perguntas e resumo em `tests/unit/setup-prompts.test.ts` |
 | REQ-003 | T-001, T-011 | Manifesto inválido sem escrita em `tests/unit/project-config.test.ts` |
 | REQ-004 | T-013, T-018 | Setup sem credenciais externas em `tests/integration/setup.test.ts` |
@@ -210,11 +213,11 @@ inclui o teste na mesma entrega. Estado de todos os requisitos: Pending.
 | REQ-011 | T-027, T-029 | Jornada inicial sem contexto pessoal e piloto humano |
 | REQ-012 | T-007 | API pública sem writer em `tests/integration/public-profile.test.ts` |
 | REQ-013 | T-003 | Registro sem política recusado em `tests/integration/security.test.ts` |
-| REQ-014 | T-015, T-016, T-018, T-019 | Provisionar/ativar/recuperar em `tests/e2e/auth.spec.ts` |
-| REQ-015 | T-016 | Sessão revogada em `tests/integration/auth.test.ts` |
-| REQ-016 | T-017 | Dois usuários/ownership em `tests/integration/owned-records.test.ts` |
+| REQ-014 | T-015, T-016, T-018, T-019 | Convite/ativação/recuperação em `templates/modules/auth/files/tests/e2e/auth.spec.ts` |
+| REQ-015 | T-016 | Sessão revogada em `templates/modules/auth/files/tests/integration/auth.test.ts` |
+| REQ-016 | T-017 | Dois usuários/ownership em `templates/modules/auth/files/tests/integration/owned-records.test.ts` |
 | REQ-017 | T-003, T-016 | Origem e CSRF em `tests/integration/security.test.ts` |
-| REQ-018 | T-011, T-019 | Ausência de dependências/tabelas auth no perfil público |
+| REQ-018 | T-011, T-019 | Perfil público sem auth em `tests/integration/public-profile.test.ts`; composição/ambientes em `tests/integration/auth-composition.test.ts` e runner dos perfis |
 | REQ-019 | T-003, T-016 | Limites/paginação/abuso em `tests/integration/security.test.ts` |
 | REQ-020 | T-003, T-014 | Redação de sentinelas em `tests/integration/security.test.ts` |
 | REQ-021 | T-002, T-022 | Config insegura bloqueada em `tests/integration/backend-bootstrap.test.ts`; container futuro |
@@ -244,15 +247,17 @@ inclui o teste na mesma entrega. Estado de todos os requisitos: Pending.
 Cobertura planejada: 43 requisitos mapeados. Implementação local T-000–T-010
 validada em [local-validation.md](local-validation.md); T-011–T-014 e T-031 em
 [onboarding-validation.md](onboarding-validation.md). A tabela acima mantém
-também contratos de etapas futuras. Requisitos
-que abrangem auth, geração, CI remoto, containers ou Railway não ficam completos
-com a evidência local. Estado por tarefa em [tasks.md](tasks.md).
+também contratos de etapas futuras. Autenticação local e geração dos perfis estão
+implementadas e validadas em [auth-validation.md](auth-validation.md); não herdam o resultado dos
+incrementos anteriores. CI remoto, containers e Railway exigem suas evidências
+próprias. Estado por tarefa em [tasks.md](tasks.md).
 
 | Escopo verificado | Estado |
 | --- | --- |
 | REQ-007, REQ-009, REQ-010, REQ-012, REQ-013, REQ-023, REQ-032, REQ-040 | Verificado no incremento local, com assertions no relatório |
 | REQ-001–003, REQ-017–022, REQ-024, REQ-028, REQ-031, REQ-037, REQ-039 | Evidência parcial local; geração, auth, containers ou provedor ainda necessários conforme cada requisito |
 | REQ-004–006, REQ-008, REQ-041–043 | Verificados no escopo public/local em onboarding-validation; operações remotas e auth continuam nas etapas próprias |
+| REQ-014–016, REQ-018, REQ-033 no recorte local | Implementados e validados em T-015–T-019; evidências próprias em [auth-validation.md](auth-validation.md) |
 | Demais requisitos | Etapas futuras; sem alegação de verificação |
 
 ## Success Criteria

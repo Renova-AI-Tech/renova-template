@@ -37,7 +37,10 @@ Aliases: `ci:quick` → `check:quick`. Sem npm/yarn. Sem `--no-verify`.
 [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md); não desenvolva o produto na galeria.
 Para IA: `pnpm run setup -- --config renova.project.json --plan --json`, depois
 `--yes --json` para preparar localmente. `pnpm run doctor -- --json` não modifica
-arquivos. Login e Railway continuam etapas futuras; não simule sua disponibilidade.
+arquivos. Login opcional é instalado somente em clone novo, por receita fixa em
+`templates/modules/auth`; veja [acesso](docs/process/authentication.md). O perfil
+público não carrega auth. Railway e adição automática de login a produto existente
+continuam futuras; não simule sua disponibilidade.
 
 ## Inegotiável
 

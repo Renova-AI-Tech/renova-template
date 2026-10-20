@@ -6,7 +6,8 @@ percorre estas jornadas; Playwright usa os mesmos nomes acessíveis e seletores.
 ## Base Renova
 
 Prepare com `pnpm run setup`; `pnpm dev` mostra o endereço local.
-O perfil atual é público, somente leitura.
+O perfil público é somente leitura. O perfil autenticado acrescenta as jornadas
+abaixo; sua referência continua pública e sintética.
 
 | Jornada | Como chegar | Seletores / nomes | Oráculo | Pegadinha |
 | --- | --- | --- | --- | --- |
@@ -21,5 +22,21 @@ O perfil atual é público, somente leitura.
 | Abrir e fechar painel | Galeria → Abrir painel → Esc | dialog, Fechar painel | Foco contido e restaurado no acionador | Testar também em 390 px |
 | Celular | Viewport 390 px | visão geral e galeria | Sem scroll horizontal; controles e painel utilizáveis | Inspeção visual além de medida de largura |
 
-Sem login/cadastro, edição ou exclusão de dados nesta entrega. Dados privados e
-escrita dependem de features com política explícita.
+## Perfil com login
+
+Conta liberada pelo responsável, sem cadastro público. Os testes usam Postgres e
+caixa de email descartáveis. A caixa local captura mensagens, sem entrega externa.
+
+| Jornada | Como chegar | Oráculo |
+| --- | --- | --- |
+| Entrar no produto | `/` sem sessão → `/entrar` | Nenhum conteúdo privado; email/senha, recuperação e referência acessíveis |
+| Ativar conta | Convite administrativo → link em `/ativar` | Senha 15–128 sem truncamento; token único; conta pendente não entra |
+| Recuperar acesso | `/recuperar` → email local → `/redefinir-senha` | Resposta genérica, senha nova funciona e sessões anteriores são rejeitadas |
+| Sair | Barra da conta → Sair | Retorna à entrada; sessão revogada no servidor |
+| Trabalhar com dados privados | `/minha-area` | Criar/listar/editar; outro usuário não vê nem altera pelo ID |
+| Link indisponível | Ativação/recuperação expirada ou reutilizada | Mensagem compreensível e opção de solicitar novo link, sem expor token |
+| Celular e teclado | Entrada em 390 px, Tab e envio | Foco visível, labels, erros úteis e ausência de overflow |
+
+O guia inicial em `/` continua substituível no perfil autenticado, dentro do gate
+de acesso. Cada nova operação da API também precisa declarar sua política;
+proteção visual sozinha não autoriza dados privados.

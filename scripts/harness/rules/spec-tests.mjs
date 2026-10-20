@@ -46,7 +46,7 @@ export function specTests(ctx) {
       const field = block.body.match(/^- \*\*Test:\*\* (.+)$/m)?.[1] ?? '';
       const itMatch = field.match(/\b(it|test)\((['"])(.+?)\2\)/);
       const pathMatch = field.match(
-        /`((?:apps|packages|scripts|tests|e2e|src)\/[^`]+?\.(?:ts|tsx|js|mjs))`/,
+        /`((?:apps|packages|scripts|tests|e2e|src|templates)\/[^`]+?\.(?:ts|tsx|js|mjs))`/,
       );
 
       if (!itMatch || !pathMatch) {

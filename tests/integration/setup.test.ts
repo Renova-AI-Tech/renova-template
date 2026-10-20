@@ -25,9 +25,11 @@ import { migrateLocalDatabase } from '../../scripts/db/migrate.mjs';
 import { runSetup, setupMain } from '../../scripts/project/setup.mjs';
 
 const roots: string[] = [];
-const config = JSON.parse(
-  await readFile(new URL('../../renova.project.json', import.meta.url), 'utf8'),
-);
+const config = {
+  ...JSON.parse(await readFile(new URL('../../renova.project.json', import.meta.url), 'utf8')),
+  profile: 'public',
+  capabilities: [],
+};
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'renova-setup-'));
   roots.push(root);
@@ -142,7 +144,7 @@ it('planeja sem escrever nem exigir Docker e publica JSON sem ruido', async () =
   expect((await readdir(root)).sort()).toEqual(['apps', 'renova.project.json']);
 });
 
-it('recusa selecao sem TTY e auth ou Railway antes de escrever', async () => {
+it('recusa selecao sem TTY login sem receita e Railway antes de escrever', async () => {
   const root = await fixture();
   for (const args of [[], ['--json']]) {
     let output = '';

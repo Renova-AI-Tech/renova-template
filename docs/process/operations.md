@@ -4,7 +4,7 @@
 
 | Comando | Faz |
 | --- | --- |
-| `pnpm run setup` | Nome do projeto, confirmação do resumo e preparação local retomável |
+| `pnpm run setup` | Nome e perfil no clone novo, confirmação do resumo e preparação local retomável |
 | `pnpm run setup -- --config renova.project.json --plan --json` | Plano sem escrita, Docker ou instalação |
 | `pnpm run setup -- --config renova.project.json --yes --json` | Preparação declarativa para IA, com saída sanitizada |
 | `pnpm run doctor` / `pnpm run doctor -- --json` | Diagnóstico somente leitura, texto ou JSON |
@@ -18,6 +18,8 @@
 | `pnpm check:quick` | Harness, Biome, tipos e loop |
 | `pnpm check:full` | Quick, build, integração e E2E obrigatórios |
 | `pnpm ci:local` | Quick + integração; parcial, não substitui full |
+| `pnpm auth:invite -- email "Nome"` | Só com login: libera conta pendente no banco local e envia link à caixa local |
+| `pnpm test:profiles` | Manutenção do template: gera clones isolados e verifica os perfis |
 
 Instale o navegador uma vez com `pnpm exec playwright install chromium`.
 Docker precisa estar em execução. Falta de Docker/porta ocupada é um erro de
@@ -31,9 +33,12 @@ ou execute `node scripts/project/doctor.mjs --json` diretamente.
 
 O setup confere Node 24, pnpm fixado no packageManager e Docker/Compose, instala
 `pnpm install --frozen-lockfile`, prepara ambiente, sobe o DB e aplica migrations.
-A execução local não depende de GitHub, Railway, Sentry, serviço de email ou ferramenta de tarefas.
-O resumo informa sem login/local. Login e Railway não são oferecidos; pedidos dessas
-opções por JSON são recusados sem escrita até as etapas correspondentes.
+A execução local não depende de GitHub, Railway, Sentry, serviço de email externo
+ou ferramenta de tarefas. Em clone novo, o perfil com login materializa uma receita
+fixa e prepara Mailpit em loopback. Sem login, não instala biblioteca de auth nem
+cria tabelas, segredos ou caixa de email. Veja [acesso](authentication.md).
+Railway permanece indisponível no configurador. Trocar o perfil de um projeto já
+preparado ou remover auth automaticamente é recusado.
 
 `--plan` não verifica o Docker nem instala dependências. `--yes` aceita a preparação
 local; não autoriza operações remotas. Fora de TTY é obrigatório passar `--config`.
@@ -102,7 +107,9 @@ de teste identificados pelo namespace; nunca remova volumes por prefixo genéric
 
 [ci.yml](../../.github/workflows/ci.yml) roda em PRs, inclusive rascunhos, e push em
 main. Quality executa quick/build; full executa build, DB e navegador; required
-recusa falha, cancelamento ou skip. Actions fixadas por SHA, token somente leitura,
+recusa falha, cancelamento ou skip dos gates aplicáveis. O repo mantenedor também
+executa a matriz de perfis; clones validam o próprio produto com quality/full.
+Actions fixadas por SHA, token somente leitura,
 sem credencial de publicação. E2E é bloqueante.
 
 No repo destino, habilite o App Blacksmith e torne `required` obrigatório na

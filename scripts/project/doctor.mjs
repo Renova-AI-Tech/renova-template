@@ -7,8 +7,14 @@ import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
-import { readLocalDatabase, validateDatabaseEnvironment } from '../db/local.mjs';
+import {
+  readLocalDatabase,
+  runCompose,
+  validateDatabaseEnvironment,
+  validateLocalProfile,
+} from '../db/local.mjs';
 import { parseProjectConfig } from './config.mjs';
+import { inspectParents } from './auth-recipe.mjs';
 
 const execute = promisify(execFile);
 const resume = 'pnpm run setup -- --config renova.project.json --yes';
@@ -38,12 +44,12 @@ async function readSafe(path) {
   }
 }
 
-function servicePorts(env) {
+function servicePorts(env, profile) {
+  validateLocalProfile(env, profile);
   const frontend = new URL(env.FRONTEND_URL);
   const backend = Number(env.PORT);
   if (
     env.HOST !== '127.0.0.1' ||
-    env.PROFILE !== 'public' ||
     !['development', 'test'].includes(env.NODE_ENV) ||
     frontend.protocol !== 'http:' ||
     frontend.hostname !== '127.0.0.1' ||
@@ -94,13 +100,15 @@ async function localHttp(port, path) {
   });
 }
 
-function installedDependencies(root) {
+function installedDependencies(root, profile) {
   for (const [path, name] of [
     ['package.json', 'pg'],
     ['apps/frontend/package.json', 'vite'],
     ['apps/backend/package.json', 'fastify'],
   ])
     createRequire(join(root, path)).resolve(name);
+  if (profile === 'authenticated')
+    createRequire(join(root, 'packages/auth/package.json')).resolve('better-auth');
 }
 
 /** Both sessions enforce read-only; bootstrap identity is intentionally hidden from runtime. */
@@ -153,6 +161,34 @@ export async function probeDatabase(root, handle) {
   }
 }
 
+/** Inspect only this project's local container; never sends or reads a message. */
+export async function probeMailbox(root, handle) {
+  validateDatabaseEnvironment(handle.plan, handle.env);
+  const result = await runCompose(root, handle.env, ['ps', '--format', 'json', 'mailpit']);
+  const parsed = JSON.parse(result.stdout.trim());
+  const rows = Array.isArray(parsed) ? parsed : [parsed];
+  if (rows.length !== 1) return false;
+  const container = rows[0];
+  return (
+    container.Project === handle.plan.composeProject &&
+    container.Service === 'mailpit' &&
+    container.Image === 'axllent/mailpit:v1.31.6' &&
+    container.State === 'running' &&
+    container.Health === 'healthy' &&
+    [
+      [1025, handle.env.SMTP_PORT],
+      [8025, handle.env.MAILPIT_PORT],
+    ].every(([target, published]) =>
+      container.Publishers?.some(
+        (port) =>
+          port.URL === '127.0.0.1' &&
+          port.TargetPort === target &&
+          port.PublishedPort === Number(published),
+      ),
+    )
+  );
+}
+
 function finish(checks, invalid = false) {
   const failed = checks.some((check) => check.status === 'failed');
   return {
@@ -169,6 +205,7 @@ export async function diagnose(root, options = {}) {
     run: execute,
     dependencies: installedDependencies,
     database: probeDatabase,
+    mailbox: probeMailbox,
     port: probePort,
     http: localHttp,
     nodeVersion: process.versions.node,
@@ -178,22 +215,32 @@ export async function diagnose(root, options = {}) {
   const add = (id, status, message, action) =>
     checks.push({ id, status, message, ...(action ? { action } : {}) });
   let pkg;
+  let profile;
   try {
     const rootStat = await inspect(root);
     if (!rootStat?.isDirectory() || rootStat.isSymbolicLink()) throw new Error();
     const config = parseProjectConfig(
       JSON.parse(await readSafe(join(root, 'renova.project.json'))),
     );
-    if (config.profile !== 'public' || config.initialTarget !== 'local') throw new Error();
+    if (config.initialTarget !== 'local') throw new Error();
+    profile = config.profile;
+    await inspectParents(root, 'packages/auth/package.json');
+    const authPackage = await readSafe(join(root, 'packages/auth/package.json'));
+    if ((profile === 'authenticated') !== Boolean(authPackage)) throw new Error();
+    if (authPackage && JSON.parse(authPackage).name !== '@renova/auth') throw new Error();
     pkg = JSON.parse(await readSafe(join(root, 'package.json')));
     if (!/^pnpm@\d+\.\d+\.\d+$/.test(pkg.packageManager)) throw new Error();
-    add('configuration', 'ready', 'Configuração válida: sem login e execução local.');
+    add(
+      'configuration',
+      'ready',
+      `Configuração válida: ${profile === 'authenticated' ? 'com login e contas liberadas pelo responsável' : 'sem login'} e execução local.`,
+    );
   } catch {
     add(
       'configuration',
       'failed',
       'Configuração ausente, inválida ou caminho inseguro.',
-      'Revise renova.project.json e package.json. Nesta etapa, use public e local.',
+      'Revise o perfil em renova.project.json e os arquivos do módulo. Execute o setup em um clone novo para escolher login; use destino local.',
     );
     return finish(checks, true);
   }
@@ -248,7 +295,7 @@ export async function diagnose(root, options = {}) {
   }
   let dependencies = false;
   try {
-    await probes.dependencies(root);
+    await probes.dependencies(root, profile);
     dependencies = true;
     add('dependencies', 'ready', 'Dependências locais disponíveis.');
   } catch {
@@ -308,7 +355,7 @@ export async function diagnose(root, options = {}) {
       return finish(checks);
     }
     handle = await readLocalDatabase(root);
-    ports = servicePorts(handle.env);
+    ports = servicePorts(handle.env, profile);
     add('environment', 'ready', 'Ambiente vinculado exclusivamente ao banco local deste projeto.');
   } catch {
     add(
@@ -318,6 +365,24 @@ export async function diagnose(root, options = {}) {
       'Peça à IA ou ao responsável para revisar .env e .renova sem compartilhar credenciais; não apague o volume.',
     );
     return finish(checks, true);
+  }
+  if (profile === 'authenticated') {
+    try {
+      if (!(await probes.mailbox(root, handle))) throw new Error();
+      add(
+        'mail',
+        'ready',
+        'Caixa de email de teste deste projeto disponível somente neste computador.',
+        `Email local: http://127.0.0.1:${handle.env.MAILPIT_PORT}`,
+      );
+    } catch {
+      add(
+        'mail',
+        'failed',
+        'A caixa de email local deste projeto não está pronta; nenhum email foi enviado pelo diagnóstico.',
+        resume,
+      );
+    }
   }
   if (dependencies) {
     try {

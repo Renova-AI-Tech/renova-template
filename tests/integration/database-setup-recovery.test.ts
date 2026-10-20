@@ -59,6 +59,28 @@ afterEach(async () => {
 });
 
 describe('retomada da preparação local sem Docker', () => {
+  it.each(['staged', 'prepared'])(
+    'recusa retomar ambiente de outro perfil em %s sem publicar arquivos',
+    async (checkpoint) => {
+      const root = await fixture();
+      await interruptAt(root, checkpoint);
+      await writeFile(
+        join(root, 'renova.project.json'),
+        JSON.stringify({ ...manifest, profile: 'authenticated', capabilities: ['auth'] }),
+      );
+      const names = await readdir(join(root, '.renova'));
+      await expect(prepareLocalDatabase(root)).rejects.toThrow('Perfil do ambiente diverge');
+      expect(await readdir(join(root, '.renova'))).toEqual(names);
+      await expect(lstat(join(root, '.env'))).rejects.toMatchObject({ code: 'ENOENT' });
+      await expect(lstat(join(root, '.renova/db-state.json'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+      // The original choice can still resume its own preparation.
+      await writeFile(join(root, 'renova.project.json'), JSON.stringify(manifest));
+      expect((await prepareLocalDatabase(root)).env.PROFILE).toBe('public');
+    },
+  );
+
   it('retoma cada janela de publicação preservando credenciais e identidade', async () => {
     for (const checkpoint of ['staged', 'prepared', 'environment-published', 'state-published']) {
       const root = await fixture();

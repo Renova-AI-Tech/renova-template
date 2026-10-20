@@ -34,7 +34,7 @@ afterEach(async () => {
 describe('guided configuration (REQ-002, REQ-003)', () => {
   it('equivale escolhas interativas ao manifesto', async () => {
     const root = await fixture();
-    const answers = ['Meu projeto'];
+    const answers = ['Meu projeto', '1'];
     const questions: string[] = [];
     const interactive = await collectSetupConfig({
       root,
@@ -46,9 +46,10 @@ describe('guided configuration (REQ-002, REQ-003)', () => {
         return answers.shift();
       },
     });
-    expect(questions).toHaveLength(1);
+    expect(questions).toHaveLength(2);
     expect(questions[0]).toContain('nome');
-    expect(questions.join('\n')).not.toMatch(/login|Railway|ORM|Kysely|provider|credencial/);
+    expect(questions[1]).toContain('Sem login');
+    expect(questions.join('\n')).not.toMatch(/Railway|ORM|Kysely|provider|credencial/);
     const expected = {
       ...initial,
       project: { slug: 'meu-projeto', displayName: 'Meu projeto' },
@@ -63,6 +64,50 @@ describe('guided configuration (REQ-002, REQ-003)', () => {
     });
     expect(declarative).toEqual(interactive);
     expect(await planProject(root, declarative)).toEqual(await planProject(root, interactive));
+  });
+
+  it('oferece login fechado sem pedir escolhas técnicas e preserva o perfil na repetição', async () => {
+    const root = await fixture();
+    const answers = ['', '2'];
+    const selected = await collectSetupConfig({
+      root,
+      options: parseSetupArguments([]),
+      input,
+      output,
+      ask: async () => answers.shift(),
+    });
+    expect(selected).toEqual({ ...initial, profile: 'authenticated', capabilities: ['auth'] });
+    await writeFile(join(root, 'renova.project.json'), JSON.stringify(selected));
+    const questions: string[] = [];
+    expect(
+      await collectSetupConfig({
+        root,
+        options: parseSetupArguments([]),
+        input,
+        output,
+        ask: async (question: string) => {
+          questions.push(question);
+          return '';
+        },
+      }),
+    ).toEqual(selected);
+    expect(questions).toHaveLength(1);
+    expect(questions[0]).toContain('nome');
+  });
+
+  it('recusa escolha de perfil desconhecida sem aplicar', async () => {
+    const root = await fixture();
+    const answers = ['', 'talvez'];
+    await expect(
+      collectSetupConfig({
+        root,
+        options: parseSetupArguments([]),
+        input,
+        output,
+        ask: async () => answers.shift(),
+      }),
+    ).rejects.toMatchObject({ code: 2 });
+    expect(JSON.parse(await readFile(join(root, 'renova.project.json'), 'utf8'))).toEqual(initial);
   });
 
   it('sem TTY exige config explicita e nao inicia prompt', async () => {
@@ -108,12 +153,9 @@ describe('guided configuration (REQ-002, REQ-003)', () => {
     expect(await readFile(join(root, '.env'), 'utf8')).toBe('DATABASE_URL=secret-sentinel');
   });
 
-  it('recusa login e Railway no manifesto sem perguntar nem alterar arquivos', async () => {
+  it('recusa Railway no manifesto sem perguntar nem alterar arquivos', async () => {
     const root = await fixture();
-    for (const unsupported of [
-      { ...initial, profile: 'authenticated', capabilities: ['auth'] },
-      { ...initial, initialTarget: 'railway' },
-    ]) {
+    for (const unsupported of [{ ...initial, initialTarget: 'railway' }]) {
       const questions: string[] = [];
       await writeFile(join(root, 'renova.project.json'), JSON.stringify(unsupported));
       for (const flags of [[], ['--config', 'renova.project.json', '--yes']]) {
@@ -193,7 +235,7 @@ describe('guided configuration (REQ-002, REQ-003)', () => {
     expect(summary).toContain('Meu projeto Renova');
     expect(summary).toContain('Sem login');
     expect(summary).toContain('Destino: este computador.');
-    expect(summary).toContain('Login e publicação no Railway ainda não estão disponíveis.');
+    expect(summary).toContain('Publicação no Railway ainda não está disponível.');
     expect(summary).toContain('renova.project.json');
     expect(summary).toContain('.renova/project-state.json');
     expect(summary).not.toContain(root);
@@ -229,14 +271,14 @@ describe('guided configuration (REQ-002, REQ-003)', () => {
         output,
         ask: async (question: string) => {
           questions.push(question);
-          return name;
+          return question.includes('nome') ? name : '1';
         },
       });
       expect(result.project).toEqual({
         slug,
         displayName: name,
       });
-      expect(questions).toHaveLength(1);
+      expect(questions).toHaveLength(2);
       expect((await planProject(root, result)).canApply).toBe(true);
       expect(JSON.parse(await readFile(join(root, 'renova.project.json'), 'utf8'))).toEqual(
         initial,

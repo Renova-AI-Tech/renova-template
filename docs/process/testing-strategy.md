@@ -18,6 +18,9 @@ E2E > propriedade > exemplo. Mock que o agente escreveu não é ground truth.
 `pnpm test:integration` e `pnpm test:e2e` criam banco e portas próprios, aplicam
 migrations e removem exclusivamente o alvo de teste ao finalizar. Não usam o .env
 de desenvolvimento. O E2E executa somente o frontend e backend da base Renova.
+Cada arquivo E2E inicia um servidor novo para não consumir o limite de IP das
+outras jornadas. Os controles de abuso continuam ativos; artefatos ficam em
+`test-results/suite-N/`. Use o runner do projeto para preservar esse isolamento.
 O caminho feliz da base usa API e Postgres reais; interceptação de transporte serve
 apenas aos estados negativos de UI e não substitui a prova de integração.
 
