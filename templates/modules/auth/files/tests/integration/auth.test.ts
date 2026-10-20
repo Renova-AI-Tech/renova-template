@@ -164,6 +164,68 @@ describe('identidade opcional com Postgres real', () => {
     expect(String(login.headers['set-cookie'])).toContain('SameSite=Lax');
     await expect(auth.invite('pending@example.test', 'Pendente')).rejects.toThrow('Conta já ativa');
   });
+  it('recusa email acima de 254 caracteres antes de processar autenticacao ou convite', async () => {
+    const boundary = `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(61)}`;
+    expect(boundary).toHaveLength(254);
+    const snapshot = async () =>
+      (
+        await inspection.query(`SELECT
+          (SELECT count(*)::int FROM public.auth_user) AS users,
+          (SELECT count(*)::int FROM public.auth_account) AS accounts,
+          (SELECT count(*)::int FROM public.auth_session) AS sessions,
+          (SELECT count(*)::int FROM public.auth_verification) AS verifications,
+          (SELECT count(*)::int FROM public.auth_rate_limit) AS ip_limits,
+          (SELECT count(*)::int FROM public.auth_account_limits) AS account_limits`)
+      ).rows[0];
+    const before = await snapshot();
+    for (const email of [`${boundary}x`, `${'a'.repeat(4096)}@example.test`, ` ${boundary}`]) {
+      for (const path of ['sign-in/email', 'request-password-reset']) {
+        const response = await post(
+          path,
+          path === 'sign-in/email' ? { email, password } : { email },
+        );
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({ error: 'Request rejected.' });
+        expect(response.headers['set-cookie']).toBeUndefined();
+      }
+      await expect(auth.invite(email, 'Oversize')).rejects.toThrow(
+        'Informe email válido e nome de até 80 caracteres.',
+      );
+    }
+    expect(await snapshot()).toEqual(before);
+    expect(messages).toEqual([]);
+    expect(events).toEqual([]);
+    expect((await post('sign-in/email', { email: boundary, password })).statusCode).toBe(401);
+    expect((await post('request-password-reset', { email: boundary })).statusCode).toBe(200);
+    const after = await snapshot();
+    expect(after.sessions).toBe(before.sessions);
+    expect(after.ip_limits).toBe(2);
+    expect(after.account_limits).toBe(2);
+  });
+  it('normaliza email igualmente no convite login recuperacao e limite por conta', async () => {
+    const email = 'normalized@example.test';
+    await auth.invite(`  ${email.toUpperCase()}  `, 'Normalizado');
+    expect(messages[0]?.to).toBe(email);
+    expect(
+      (await post('reset-password', { token: token(), newPassword: password })).statusCode,
+    ).toBe(200);
+    const login = await post('sign-in/email', { email: ` ${email.toUpperCase()} `, password });
+    expect(login.statusCode).toBe(200);
+    expect(login.json().user.email).toBe(email);
+    expect(
+      (await post('request-password-reset', { email: ` ${email.toUpperCase()} ` })).statusCode,
+    ).toBe(200);
+    expect(messages.at(-1)?.to).toBe(email);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const response = await post(
+        'sign-in/email',
+        { email: attempt % 2 ? email.toUpperCase() : email, password: `${password}Wrong` },
+        new Map(),
+        `192.0.2.${attempt + 1}`,
+      );
+      expect(response.statusCode).toBe(attempt < 4 ? 401 : 429);
+    }
+  });
   it('recusa senha fora do limite e replay concorrente do link', async () => {
     await auth.invite('replay@example.test', 'Replay');
     const value = token();

@@ -1,8 +1,8 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { planProject } from '../../scripts/project/generate.mjs';
+import { applyProject, planProject } from '../../scripts/project/generate.mjs';
 import {
   collectSetupConfig,
   confirmPlan,
@@ -109,6 +109,55 @@ describe('guided configuration (REQ-002, REQ-003)', () => {
     ).rejects.toMatchObject({ code: 2 });
     expect(JSON.parse(await readFile(join(root, 'renova.project.json'), 'utf8'))).toEqual(initial);
   });
+
+  it('permite escolher login após configuração interrompida antes do ambiente, preservando o slug', async () => {
+    const root = await fixture();
+    await applyProject(await planProject(root, initial));
+    const state = await readFile(join(root, '.renova/project-state.json'), 'utf8');
+    const answers = ['Nome atualizado', '2'];
+    const questions: string[] = [];
+    const selected = await collectSetupConfig({
+      root,
+      options: parseSetupArguments([]),
+      input,
+      output,
+      ask: async (question: string) => {
+        questions.push(question);
+        return answers.shift();
+      },
+    });
+    expect(questions).toHaveLength(2);
+    expect(selected).toEqual({
+      ...initial,
+      project: { slug: initial.project.slug, displayName: 'Nome atualizado' },
+      profile: 'authenticated',
+      capabilities: ['auth'],
+    });
+    expect(await readFile(join(root, '.renova/project-state.json'), 'utf8')).toBe(state);
+  });
+
+  it.each(['.env', '.renova/db-state.json'])(
+    'não oferece troca de perfil quando %s já existe',
+    async (path) => {
+      const root = await fixture();
+      await mkdir(join(root, '.renova'));
+      await writeFile(join(root, path), 'identity-sentinel');
+      const questions: string[] = [];
+      const selected = await collectSetupConfig({
+        root,
+        options: parseSetupArguments([]),
+        input,
+        output,
+        ask: async (question: string) => {
+          questions.push(question);
+          return '';
+        },
+      });
+      expect(questions).toHaveLength(1);
+      expect(selected).toEqual(initial);
+      expect(await readFile(join(root, path), 'utf8')).toBe('identity-sentinel');
+    },
+  );
 
   it('sem TTY exige config explicita e nao inicia prompt', async () => {
     const root = await fixture();

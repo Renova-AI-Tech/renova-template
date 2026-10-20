@@ -25,7 +25,7 @@ Nenhum banco de aplicação existente foi usado pelos testes de auth.
 - Navegador focal: oito jornadas de auth passaram contra API, Postgres e caixa
   de email descartáveis. Incluem ativação, recuperação, logout, autorização,
   erro de rede e telas em 390/1440 px. Screenshots foram inspecionados.
-- Matriz: projeto público gerado do zero passou instalação congelada e
+- Primeira matriz: projeto público gerado do zero passou instalação congelada e
   `check:full`: 37 harness, 53 unit/property, 17 UI, 109 integração e 14 E2E.
   Autenticado passou a mesma sequência: 37 harness, 53 unit/property, 17 UI,
   125 integração e 22 E2E. Totais: **230 público / 254 autenticado**.
@@ -72,6 +72,24 @@ por IP bloqueou uma navegação no último arquivo. O trace confirmou HTTP 429;
 não era uma falha intermitente de navegação. O runner agora inicia um servidor
 novo por arquivo E2E e separa seus artefatos. Os limites de produção não mudaram,
 e os testes de abuso continuam cobrindo concorrência e persistência.
+
+A revisão da PR #3 encontrou mais quatro casos, corrigidos antes do merge:
+
+- Email excessivo era encaminhado à biblioteca sem o limite por conta. Agora
+  login, recuperação e convite recusam entradas acima de 254 caracteres antes
+  do processamento e usam a mesma normalização no contador e na biblioteca.
+- Setup interrompido antes de preparar o ambiente escondia a escolha de perfil.
+  A retomada preserva o identificador e volta a oferecer login; `.env` ou estado
+  de banco existentes continuam impedindo a troca.
+- A confirmação de salvamento não identificava o registro fora da primeira
+  página. Agora apresenta o título retornado pela API, mantendo a ordem paginada.
+- Paginação atrasada podia alterar uma lista já recarregada. Todas as leituras
+  compartilham cancelamento e descartam respostas anteriores.
+
+As regressões adicionais exercitam entrada excessiva sem efeitos em banco/email,
+normalização, retomada e 25 registros reais com resposta de paginação atrasada.
+As jornadas de paginação têm arquivo próprio e servidor isolado; o limite global
+de requisições permanece igual. O resultado do CI final pertence ao commit da PR.
 
 ## Limites
 

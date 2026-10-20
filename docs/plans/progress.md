@@ -16,6 +16,9 @@ Cada sessão longa acrescenta um bloco no topo. Não apague histórico.
   banco e segredos. [Evidências e limites](../specs/renova-project-template/auth-validation.md).
 - A PR e o CI remoto deste incremento serão conferidos no commit publicado;
   o resultado local não é apresentado como validação Railway ou aceite humano.
+- A revisão da PR #3 acrescentou correções e regressões para email excessivo,
+  retomada da escolha de perfil, confirmação de salvamento e paginação concorrente.
+  Os resultados finais ficam vinculados ao commit validado pelo Blacksmith na PR.
 
 ## 2026-10-19 — merge e clone de outro projeto
 

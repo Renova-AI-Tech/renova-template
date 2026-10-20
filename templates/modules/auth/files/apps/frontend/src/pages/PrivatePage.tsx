@@ -29,17 +29,17 @@ export function PrivatePage() {
   const [saveError, setSaveError] = useState('');
   const [notice, setNotice] = useState('');
 
-  const refresh = useCallback(() => {
+  const loadPage = useCallback((cursor?: string) => {
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
     setLoadError('');
     setLoading(true);
     api.records.list
-      .query({ limit: 20 }, { signal: controller.signal })
+      .query({ limit: 20, ...(cursor ? { cursor } : {}) }, { signal: controller.signal })
       .then((result) => {
         if (controller.signal.aborted) return;
-        setItems(result.items);
+        setItems((current) => (cursor ? [...current, ...result.items] : result.items));
         setNextCursor(result.nextCursor);
       })
       .catch((error: unknown) => {
@@ -51,24 +51,9 @@ export function PrivatePage() {
   }, []);
 
   useEffect(() => {
-    refresh();
+    loadPage();
     return () => request.current?.abort();
-  }, [refresh]);
-
-  async function loadMore() {
-    if (!nextCursor) return;
-    setLoading(true);
-    setLoadError('');
-    try {
-      const result = await api.records.list.query({ limit: 20, cursor: nextCursor });
-      setItems((current) => [...current, ...result.items]);
-      setNextCursor(result.nextCursor);
-    } catch (error) {
-      setLoadError(privateError(error));
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [loadPage]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -76,12 +61,13 @@ export function PrivatePage() {
     setSaveError('');
     setNotice('');
     try {
-      if (editing) await api.records.update.mutate({ id: editing, title });
-      else await api.records.create.mutate({ title });
+      const record = editing
+        ? await api.records.update.mutate({ id: editing, title })
+        : await api.records.create.mutate({ title });
       setTitle('');
       setEditing(null);
-      setNotice('Registro salvo.');
-      refresh();
+      setNotice(`Registro salvo: ${record.title}.`);
+      loadPage();
     } catch (error) {
       setSaveError(privateError(error));
     } finally {
@@ -144,7 +130,11 @@ export function PrivatePage() {
               {saveError}
             </p>
           )}
-          {notice && <p role="status">{notice}</p>}
+          {notice && (
+            <p role="status" data-testid="saved-record">
+              {notice}
+            </p>
+          )}
         </form>
         <section className="private-records" aria-labelledby="records-title" aria-busy={loading}>
           <h2 id="records-title">Seus registros</h2>
@@ -156,7 +146,7 @@ export function PrivatePage() {
           {loadError && (
             <div className="auth-result" data-testid="private-error">
               <p role="alert">{loadError}</p>
-              <Button variant="outline" onClick={refresh}>
+              <Button variant="outline" onClick={() => loadPage()}>
                 Tentar novamente
               </Button>
             </div>
@@ -189,7 +179,7 @@ export function PrivatePage() {
             ))}
           </ul>
           {nextCursor && (
-            <Button variant="outline" disabled={loading} onClick={loadMore}>
+            <Button variant="outline" disabled={loading} onClick={() => loadPage(nextCursor)}>
               Carregar mais
             </Button>
           )}

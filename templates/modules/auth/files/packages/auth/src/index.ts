@@ -55,6 +55,12 @@ function validBody(path: string, body: unknown): body is Record<string, string> 
     fields.every((key) => key === 'redirectTo' || typeof values[key] === 'string')
   );
 }
+function normalizeEmail(value: string): string | null {
+  // Bound the submitted value before normalization, including discarded whitespace.
+  if (value.length > 254) return null;
+  const email = value.trim().toLowerCase();
+  return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+}
 const genericReset = {
   status: true,
   message: 'Se houver uma conta liberada, você receberá as instruções de acesso.',
@@ -248,18 +254,14 @@ export function createAuthService(settings: AuthSettings, options: AuthOptions =
             .json()
             .catch(() => null)
         : undefined;
-    if (request.method === 'POST' && !validBody(path, body)) {
-      return Response.json({ error: 'Request rejected.' }, { status: 400 });
-    }
-    const headers = new Headers(request.headers);
-    headers.set('x-renova-client-ip', clientIp);
-    // Never trust caller-provided forwarding. Fastify supplies its validated socket/proxy address.
-    headers.delete('x-forwarded-for');
-    headers.delete('x-real-ip');
-    const guarded = new Request(request, { headers });
-    if (path === 'sign-in/email' || path === 'request-password-reset') {
-      const email = body && typeof body === 'object' && 'email' in body ? body.email : null;
-      if (typeof email === 'string' && email.length <= 320) {
+    if (request.method === 'POST') {
+      if (!validBody(path, body)) {
+        return Response.json({ error: 'Request rejected.' }, { status: 400 });
+      }
+      if (path === 'sign-in/email' || path === 'request-password-reset') {
+        const email = normalizeEmail(body.email ?? '');
+        if (!email) return Response.json({ error: 'Request rejected.' }, { status: 400 });
+        body.email = email;
         const retry = await accountLimit(email, path);
         if (retry)
           return Response.json(
@@ -268,6 +270,16 @@ export function createAuthService(settings: AuthSettings, options: AuthOptions =
           );
       }
     }
+    const headers = new Headers(request.headers);
+    headers.set('x-renova-client-ip', clientIp);
+    // Never trust caller-provided forwarding. Fastify supplies its validated socket/proxy address.
+    headers.delete('x-forwarded-for');
+    headers.delete('x-real-ip');
+    if (request.method === 'POST') headers.delete('content-length');
+    const guarded = new Request(request, {
+      headers,
+      ...(request.method === 'POST' ? { body: JSON.stringify(body) } : {}),
+    });
     let response: Response;
     try {
       response = await auth.handler(guarded);
@@ -304,13 +316,8 @@ export function createAuthService(settings: AuthSettings, options: AuthOptions =
     });
   }
   async function invite(email: string, name: string): Promise<{ delivery: 'accepted' | 'failed' }> {
-    const normalized = email.trim().toLowerCase();
-    if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ||
-      normalized.length > 254 ||
-      !name.trim() ||
-      name.trim().length > 80
-    )
+    const normalized = normalizeEmail(email);
+    if (!normalized || !name.trim() || name.trim().length > 80)
       throw new Error('Informe email válido e nome de até 80 caracteres.');
     if (await accountLimit(normalized, 'invitation'))
       throw new Error('Aguarde 15 minutos antes de reenviar.');

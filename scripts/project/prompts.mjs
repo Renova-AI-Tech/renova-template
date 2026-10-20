@@ -59,18 +59,21 @@ async function withQuestions({ input, output, ask }, run) {
   }
 }
 
-async function hasLocalIdentity(root) {
+async function readLocalIdentity(root) {
+  let keepSlug = false;
+  let keepProfile = false;
   for (const path of ['.env', '.renova/db-state.json', '.renova/project-state.json']) {
     try {
       await lstat(resolve(root, path));
-      return true;
+      keepSlug = true;
+      if (path !== '.renova/project-state.json') keepProfile = true;
     } catch (error) {
       if (error.code !== 'ENOENT') {
         throw new ProjectSetupError('Não foi possível conferir a identidade local do projeto.', 1);
       }
     }
   }
-  return false;
+  return { keepSlug, keepProfile };
 }
 
 function slugForName(name, current) {
@@ -106,7 +109,7 @@ export async function collectSetupConfig({
   }
   requireTerminal(input, output);
   const current = await readConfig(resolve(root, 'renova.project.json'));
-  const keepSlug = await hasLocalIdentity(root);
+  const { keepSlug, keepProfile } = await readLocalIdentity(root);
   return withQuestions({ input, output, ask }, async (question) => {
     const displayName =
       (await question(`Qual é o nome do projeto? [${current.project.displayName}] `)).trim() ||
@@ -121,7 +124,7 @@ export async function collectSetupConfig({
             : slugForName(displayName, current),
       },
     });
-    if (keepSlug || current.profile === 'authenticated') return configured;
+    if (keepProfile || current.profile === 'authenticated') return configured;
     const choice =
       (
         await question(
