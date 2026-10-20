@@ -81,6 +81,7 @@ test('serve SPA, assets e API sem expor env ou sourcemap privado', async () => {
   assert.equal(page.status, 200);
   assert.equal(page.headers.get('cache-control'), 'no-cache');
   assert.match(page.headers.get('content-security-policy'), /connect-src 'self'/);
+  assert.match(page.headers.get('content-security-policy'), /font-src 'self'(?:;|$)/);
   assert.ok(!html.includes(sentinel));
   const script = html.match(/src="(\/assets\/[^"]+\.js)"/)?.[1];
   assert.ok(script, 'Built HTML must reference an actual asset');
@@ -88,6 +89,24 @@ test('serve SPA, assets e API sem expor env ou sourcemap privado', async () => {
   assert.equal(asset.status, 200);
   assert.match(asset.headers.get('cache-control'), /immutable/);
   assert.ok(!(await asset.text()).includes(sentinel));
+  const stylesheets = [...html.matchAll(/href="(\/assets\/[^"\s]+\.css)"/g)];
+  assert.ok(stylesheets.length > 0, 'Built HTML must reference its stylesheet');
+  for (const [, path] of stylesheets) {
+    const stylesheet = await fetch(`${origin}${path}`);
+    assert.equal(stylesheet.status, 200);
+    const css = await stylesheet.text();
+    const fonts = [...css.matchAll(/@font-face\{[^}]+\}/g)];
+    assert.ok(fonts.length > 0, 'Built CSS must include the local fonts');
+    for (const [font] of fonts) {
+      const source = font.match(/src:url\(["']?([^"')]+)["']?\)/)?.[1];
+      assert.ok(source, 'Every font must have a served source');
+      assert.match(source, /^\/assets\/[^/?#]+\.woff2$/);
+      const response = await fetch(`${origin}${source}`);
+      assert.equal(response.status, 200, source);
+      assert.match(response.headers.get('cache-control'), /immutable/);
+      assert.ok((await response.arrayBuffer()).byteLength > 0, source);
+    }
+  }
   for (const path of ['/assets/missing.js', `${script}.map`, '/.env', '/api/missing']) {
     const response = await fetch(`${origin}${path}`);
     assert.equal(response.status, 404, path);

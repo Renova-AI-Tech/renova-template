@@ -44,6 +44,6 @@ export default defineConfig(({ command }) => {
         'Content-Security-Policy': `default-src 'self'; script-src 'self' 'nonce-${developmentNonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws://127.0.0.1:*; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`,
       },
     },
-    build: { sourcemap: false },
+    build: { sourcemap: false, assetsInlineLimit: 0 },
   };
 });
