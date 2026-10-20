@@ -52,6 +52,9 @@ Container único, Postgres privado, plano IaC nativo e publicação condicionada
 do commit. Dois pilotos independentes passaram em saúde, navegador e API; o perfil
 com login recebeu convite e recuperação reais. Restauração lógica também ensaiada.
 Veja as [evidências e limites](../../specs/renova-project-template/railway-validation.md).
+Os pilotos foram encerrados em 20/10/2026: aplicações e bancos offline, com remoção
+definitiva agendada pelo Railway. O template não mantém ambiente compartilhado;
+cada clone cria seus próprios recursos quando precisar publicar.
 
 ## Em aberto (projeto real)
 

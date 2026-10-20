@@ -2,6 +2,33 @@
 
 **Verdict:** PASS
 
+Estado atual: ensaio concluído; ambientes encerrados.
+
+## Encerramento dos pilotos — 20/10/2026
+
+Os pilotos eram descartáveis e foram encerrados após autorização do responsável.
+O template não precisa manter infraestrutura no Railway: cada novo projeto cria
+seu próprio destino somente quando precisar publicar.
+
+- Railway: exclusão dos projetos `renova-template-piloto` e `renova-email-piloto`
+  aceita. As duas aplicações e os dois Postgres estão offline, sem deployments
+  ativos; ambas as origens retornam HTTP 404. O provedor agendou a remoção
+  definitiva dos projetos, bancos e volumes para 22/10/2026, às 01h28–01h29
+  (America/Sao_Paulo). Essa remoção futura ainda não foi observada.
+- Resend: chave exclusiva `renova-email-piloto` revogada na equipe `renovagp`;
+  a chave anterior `Onboarding`, o domínio verificado e o DNS foram preservados.
+- GitHub: exclusão do clone `Renova-AI-Tech/renova-email-piloto` solicitada;
+  aguarda confirmação de identidade do responsável no GitHub Mobile.
+- O repositório `Renova-AI-Tech/renova-template`, o projeto Railway `renova` e
+  os bancos locais foram preservados. A busca nos arquivos rastreados confirmou
+  que as referências aos pilotos estão apenas neste relatório.
+
+As evidências abaixo são históricas. Não use as origens desativadas para novos
+projetos nem tente recuperar acesso às contas do ensaio. O template foi integrado
+pela [PR #4](https://github.com/Renova-AI-Tech/renova-template/pull/4), com
+[CI da main aprovado](https://github.com/Renova-AI-Tech/renova-template/actions/runs/39368629223)
+no commit `4ff9318cf97724f4c9512270f9e10b37c4f677f8`.
+
 Escopo: pilotos técnicos dos dois perfis, envio e recebimento real, jornada de
 acesso e restauração lógica. Não equivale a aceite humano nem configura a política
 de backup de um projeto que receberá dados reais.
@@ -14,11 +41,13 @@ Nenhum serviço ou dado da aplicação Renova existente foi alterado.
 
 | Perfil | Projeto / ambiente | Origem | Commit / CI / deployment |
 | --- | --- | --- | --- |
-| Público | `renova-template-piloto` / `piloto` | [Abrir piloto](https://app-piloto.up.railway.app) | `dd1cfa7`; [CI 39365966778](https://github.com/Renova-AI-Tech/renova-template/actions/runs/39365966778); `cad52ef3-3c1d-49dc-ad19-3559e543f776` SUCCESS |
-| Com login | `renova-email-piloto` / `piloto` | [Abrir piloto](https://app-piloto-af33.up.railway.app) | `cd9a097`; [CI 39367202055](https://github.com/Renova-AI-Tech/renova-email-piloto/actions/runs/39367202055); `8cc325a8-1968-419a-826d-62300f1d728f` SUCCESS; convite e recuperação recebidos, jornada concluída |
+| Público | `renova-template-piloto` / `piloto` | `app-piloto.up.railway.app` (desativada) | `dd1cfa7`; [CI 39365966778](https://github.com/Renova-AI-Tech/renova-template/actions/runs/39365966778); `cad52ef3-3c1d-49dc-ad19-3559e543f776` SUCCESS |
+| Com login | `renova-email-piloto` / `piloto` | `app-piloto-af33.up.railway.app` (desativada) | `cd9a097`; CI 39367202055 aprovado no clone; `8cc325a8-1968-419a-826d-62300f1d728f` SUCCESS; convite e recuperação recebidos, jornada concluída |
 
-O perfil com login foi gerado em clone independente e tem repositório próprio.
-Os recursos não dependem do projeto de produção Renova nem do banco local.
+O perfil com login foi gerado em clone independente com repositório próprio.
+A exclusão desse repositório remove também sua página de CI; o SHA, o ID e o
+resultado da execução ficam registrados acima. Os recursos do ensaio não
+dependiam do projeto de produção Renova nem do banco local.
 
 ## Evidências por camada
 
@@ -101,9 +130,10 @@ Navegador real contra o piloto autenticado concluiu às 04:06:46 UTC:
 
 Cadastro público também foi recusado (404). A aplicação oferece criar/ler/editar;
 não existe exclusão no exemplo. O registro sintético identificado como ensaio
-permanece somente no banco isolado do piloto. Tokens foram usados apenas no ensaio,
-sem screenshots, traces ou estado de sessão exportados. A senha de teste não é
-entregue ao usuário: para usar a conta, a pessoa define sua senha por Recuperar acesso.
+ficou somente no banco isolado do piloto, agora offline e incluído na exclusão
+agendada do projeto. Tokens foram usados apenas no ensaio, sem screenshots,
+traces ou estado de sessão exportados. A senha de teste foi descartada; com o
+encerramento do ambiente, a conta e a recuperação de acesso não estão disponíveis.
 
 ## Regressões e instruções verificadas
 
