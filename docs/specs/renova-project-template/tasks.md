@@ -3,7 +3,7 @@
 Spec: [requirements.md](requirements.md). Design: [design.md](design.md).
 Estado do plano: implementação local autorizada em 19/10/2026, começando pela
 base Vite/Fastify/Postgres/UI. A autenticação opcional local está implementada e
-validada localmente em T-015–T-019. Publicação e configuração Railway não iniciadas.
+validada localmente em T-015–T-019. Incremento Railway/email autorizado e em validação isolada.
 
 ## Execution Protocol
 
@@ -463,46 +463,46 @@ inventar testes para satisfazer o parser atual.
 - **Gate:** CI (comando da tabela; incluir lint/types aplicáveis).
 - **Test:** `it('recusa CI incompleto mesmo com workflow secundario verde')` em `tests/unit/ci-contract.test.ts`.
 
-## T-021 — Empacotar frontend e proxy
+## T-021 — Servir frontend e API na mesma imagem
 
-- **Status:** todo
-- **Ownership:** `Dockerfile.frontend` e testes diretamente relacionados.
-- **What:** Imagem frontend com Caddy, roteamento /api, fallback SPA e regras de cache; criar test:containers.
+- **Status:** in_progress
+- **Ownership:** `apps/backend/src/server/frontend.ts` e testes diretamente relacionados.
+- **What:** Fastify serve build Vite, /api, fallback SPA e regras de cache; criar test:containers.
 - **Depends on:** T-019
 - **Requirement:** REQ-024, REQ-027
 - **Done when:** Assets ausentes retornam 404, rota profunda abre SPA, API mantém mesma origem; env/backend/sourcemap privado não chegam à imagem.
 - **Tests:** container + e2e; pelo menos 6 cenários nomeados, contagem real registrada na execução.
 - **Gate:** Containers (comando da tabela; incluir lint/types aplicáveis).
-- **Test:** `test('serve SPA e API na mesma origem sem segredo')` em `tests/e2e/container.spec.ts`.
+- **Test:** `test('serve SPA, assets e API sem expor env ou sourcemap privado')` em `tests/containers/runtime.test.mjs`.
 
 ## T-022 — Empacotar backend e declarar serviços
 
-- **Status:** todo
-- **Ownership:** `Dockerfile.backend` e testes diretamente relacionados.
-- **What:** Imagem backend com runtime mínimo e configurações Railway dos dois serviços, raiz/watch paths e rede privada.
+- **Status:** in_progress
+- **Ownership:** `Dockerfile` e testes diretamente relacionados.
+- **What:** Imagem única Vite/Fastify com runtime mínimo e IaC Railway para app, com banco privado separado.
 - **Depends on:** T-005, T-016, T-021
 - **Requirement:** REQ-021, REQ-027
 - **Done when:** Startup inválido falha, sinais encerram conexões, DB/backend não precisam de domínio público e dependências compartilhadas entram no build.
 - **Tests:** container; pelo menos 5 cenários nomeados, contagem real registrada na execução.
 - **Gate:** Containers (comando da tabela; incluir lint/types aplicáveis).
-- **Test:** `it('inicia backend compilado com configuracao validada')` em `tests/integration/backend-container.test.ts`.
+- **Test:** `test('inicia backend compilado com configuracao validada')` em `tests/containers/runtime.test.mjs`.
 
 ## T-023 — Conectar migration e readiness à publicação
 
-- **Status:** todo
+- **Status:** in_progress
 - **Ownership:** `scripts/deploy/predeploy.mjs` e testes diretamente relacionados.
 - **What:** Etapa única de migration pré-deploy e readiness por versão esperada; contrato de rollback de imagem separado dos dados.
 - **Depends on:** T-005, T-022
 - **Requirement:** REQ-022, REQ-028
-- **Done when:** Migration falha impede novo release; DB indisponível torna ready 503; release anterior mantém compatibilidade; nenhum rollback automático de DB.
+- **Done when:** Migration falha impede novo release; DB indisponível torna ready 503; readiness exige identidade e histórico exatos, inclusive no retorno a uma imagem anterior; nenhum rollback automático de DB.
 - **Tests:** integration + container; pelo menos 5 cenários nomeados, contagem real registrada na execução.
 - **Gate:** Containers (comando da tabela; incluir lint/types aplicáveis).
 - **Test:** `it('interrompe publicacao quando migration falha')` em `tests/integration/predeploy.test.ts`.
 
 ## T-024 — Gerar plano de instalação Railway
 
-- **Status:** todo
-- **Ownership:** `scripts/deploy/prepare.mjs` e testes diretamente relacionados.
+- **Status:** in_progress
+- **Ownership:** `scripts/deploy/release.mjs` e testes diretamente relacionados.
 - **What:** Preflight de acessos e destino explícitos, inventário somente leitura, plano sanitizado com hash/validade, SHA e hash do contexto ou digest da imagem a publicar.
 - **Depends on:** T-020, T-022, T-023
 - **Requirement:** REQ-025, REQ-030
@@ -513,8 +513,8 @@ inventar testes para satisfazer o parser atual.
 
 ## T-025 — Aplicar plano remoto com retomada
 
-- **Status:** todo
-- **Ownership:** `scripts/deploy/apply.mjs` e testes diretamente relacionados.
+- **Status:** in_progress
+- **Ownership:** `scripts/deploy/release.mjs` e testes diretamente relacionados.
 - **What:** Driver Railway com autorização do plano atual, revalidação, IDs persistidos e tratamento de resultado desconhecido.
 - **Depends on:** T-024
 - **Requirement:** REQ-006, REQ-026, REQ-031
@@ -525,7 +525,7 @@ inventar testes para satisfazer o parser atual.
 
 ## T-026 — Verificar pilotos remotos e recuperação
 
-- **Status:** todo
+- **Status:** in_progress
 - **Ownership:** `scripts/deploy/verify.mjs` e testes diretamente relacionados.
 - **What:** Verificador e relatório por camada; pilotos isolados dos dois perfis somente com autorização remota e complemento do guia Railway com evidência real.
 - **Depends on:** T-025
@@ -537,7 +537,7 @@ inventar testes para satisfazer o parser atual.
 
 ## T-027 — Publicar as instruções que acompanham o clone
 
-- **Status:** todo
+- **Status:** in_progress
 - **Ownership:** `docs/process` e testes diretamente relacionados.
 - **What:** Guia curto humano/IA, feature map, comandos, limites, revisão e ações locais/remotas; sem skill pessoal obrigatória.
 - **Depends on:** T-014, T-019

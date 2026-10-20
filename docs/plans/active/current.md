@@ -46,6 +46,12 @@ ficam nos planos locais; ferramenta externa de tarefas é opcional.
   CI usa Blacksmith; no perfil com login, o responsável libera as contas, sem cadastro público.
   Plano aprovado e implementação da base local autorizada na sequência.
 
+## Incremento remoto em validação
+
+Container único, IaC Railway e transporte Resend implementados na branch de trabalho.
+Piloto separado criado; liberação depende das [evidências remotas](../../specs/renova-project-template/railway-validation.md),
+incluindo domínio/remetente verificados e convite recebido.
+
 ## Em aberto (projeto real)
 
 - [ ] Personalizar nome/slug no setup e responsáveis de revisão, quando aplicável.

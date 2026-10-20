@@ -1,3 +1,4 @@
+import { isIP } from 'node:net';
 import { z } from 'zod';
 
 const loopbackHosts = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
@@ -26,6 +27,16 @@ const schema = z
     FRONTEND_URL: z.url().default('http://127.0.0.1:43123'),
     DATABASE_URL: z.string().refine((value) => parseDatabaseUrl(value) !== undefined),
     PROFILE: z.literal('public').default('public'),
+    DEPLOY_TARGET: z.enum(['local', 'railway']).default('local'),
+    RAILWAY_PROJECT_ID: z.uuid().optional(),
+    RAILWAY_ENVIRONMENT_ID: z.uuid().optional(),
+    RAILWAY_SERVICE_ID: z.uuid().optional(),
+    RENOVA_DB_NAME: z
+      .string()
+      .regex(/^[a-z][a-z0-9_]{2,62}$/)
+      .optional(),
+    RENOVA_DB_PROJECT_ID: z.uuid().optional(),
+    RENOVA_DB_ENVIRONMENT_ID: z.uuid().optional(),
   })
   .superRefine((value, ctx) => {
     let frontend: URL;
@@ -52,7 +63,30 @@ const schema = z
       ctx.addIssue({ code: 'custom', path: ['FRONTEND_URL'], message: 'Use loopback locally.' });
     }
     if (value.NODE_ENV === 'production') {
-      if (frontend.protocol !== 'https:' || loopbackHosts.has(frontend.hostname)) {
+      for (const field of [
+        'RAILWAY_PROJECT_ID',
+        'RAILWAY_ENVIRONMENT_ID',
+        'RAILWAY_SERVICE_ID',
+      ] as const) {
+        if (!value[field]) {
+          ctx.addIssue({ code: 'custom', path: [field], message: 'Identify the Railway target.' });
+        }
+      }
+      if (value.DEPLOY_TARGET !== 'railway') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['DEPLOY_TARGET'],
+          message: 'Use the validated Railway target.',
+        });
+      }
+      const hostname = frontend.hostname.replace(/^\[|\]$/g, '');
+      if (
+        frontend.protocol !== 'https:' ||
+        isIP(hostname) !== 0 ||
+        !hostname.includes('.') ||
+        hostname.endsWith('.') ||
+        /\.(?:localhost|local|internal|test|invalid)$/.test(hostname)
+      ) {
         ctx.addIssue({
           code: 'custom',
           path: ['FRONTEND_URL'],
@@ -60,6 +94,36 @@ const schema = z
         });
       }
       const database = parseDatabaseUrl(value.DATABASE_URL);
+      if (
+        !value.RENOVA_DB_NAME ||
+        (database &&
+          (database.hostname.endsWith('.railway.internal') !== true ||
+            database.username !== 'renova_runtime' ||
+            database.pathname !== `/${value.RENOVA_DB_NAME}`))
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['DATABASE_URL'],
+          message: 'Use the bound private runtime database.',
+        });
+      }
+      if (value.RENOVA_DB_PROJECT_ID && value.RENOVA_DB_PROJECT_ID !== value.RAILWAY_PROJECT_ID) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['RENOVA_DB_PROJECT_ID'],
+          message: 'Database project differs.',
+        });
+      }
+      if (
+        value.RENOVA_DB_ENVIRONMENT_ID &&
+        value.RENOVA_DB_ENVIRONMENT_ID !== value.RAILWAY_ENVIRONMENT_ID
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['RENOVA_DB_ENVIRONMENT_ID'],
+          message: 'Database environment differs.',
+        });
+      }
       if (
         database &&
         (['postgres', 'root', 'admin'].includes(

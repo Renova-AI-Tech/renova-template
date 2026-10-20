@@ -69,6 +69,8 @@ export default {
         '**/*.config.mjs',
         '**/*.config.js',
         'scripts/**',
+        'templates/modules/auth/files/scripts/**', // Same operational scripts before composition.
+        '.railway/railway.ts', // Railway configuration entry point; never browser/runtime code.
         'harness.rules.mjs',
         'playwright.config.ts',
       ],

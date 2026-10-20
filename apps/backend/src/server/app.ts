@@ -3,11 +3,14 @@ import rateLimit from '@fastify/rate-limit';
 import type { AnyRouter } from '@trpc/server';
 import Fastify, { LogController, type FastifyReply } from 'fastify';
 import type { BackendEnv } from '../env.js';
+import { clientIp } from './client-ip.js';
+import { registerFrontend } from './frontend.js';
 import { registerTrpc } from './register.js';
 import { registerSecurity, type SecurityOptions } from './security.js';
 import type { ExampleRepository } from '../modules/example/example.repository.js';
 
 export interface AppOptions {
+  frontendRoot?: string;
   readiness?: () => Promise<boolean>;
   logStream?: { write(message: string): void };
   verifyCsrf?: SecurityOptions['verifyCsrf'];
@@ -57,7 +60,12 @@ export async function createApp(env: BackendEnv, options: AppOptions = {}) {
     ...(options.verifyCsrf ? { verifyCsrf: options.verifyCsrf } : {}),
   });
 
-  await app.register(rateLimit, { max: 120, timeWindow: 60_000, cache: 5000 });
+  await app.register(rateLimit, {
+    max: 120,
+    timeWindow: 60_000,
+    cache: 5000,
+    keyGenerator: (request) => clientIp(env, request),
+  });
 
   app.setErrorHandler((error, request, reply) => {
     const candidate = error instanceof Error && 'statusCode' in error ? error.statusCode : 500;
@@ -70,7 +78,10 @@ export async function createApp(env: BackendEnv, options: AppOptions = {}) {
     });
   });
   app.setNotFoundHandler({ preHandler: app.rateLimit() }, (request, reply) => {
-    reply.code(404).send({ error: 'Not found.', requestId: request.id });
+    reply
+      .header('cache-control', 'no-store')
+      .code(404)
+      .send({ error: 'Not found.', requestId: request.id });
   });
 
   app.get('/health', { config: { accessPolicy: 'public' } }, async () => ({
@@ -88,6 +99,7 @@ export async function createApp(env: BackendEnv, options: AppOptions = {}) {
 
   try {
     await registerTrpc(app, options.router, options.examples);
+    if (env.NODE_ENV === 'production') await registerFrontend(app, options.frontendRoot);
   } catch (error) {
     await app.close();
     throw error;

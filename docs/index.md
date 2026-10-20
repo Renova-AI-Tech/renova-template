@@ -18,6 +18,8 @@ Uma fonte por pergunta. Status: **atual** ou **obsoleto** (não apague obsoleto 
 | Como revisar o PR? | [process/pr-review.md](process/pr-review.md) | atual |
 | Comandos, portas, hooks, CI? | [process/operations.md](process/operations.md) | atual |
 | Como escolher login e liberar contas? | [process/authentication.md](process/authentication.md) | atual, perfil local |
+| O que foi validado no piloto Railway? | [specs/renova-project-template/railway-validation.md](specs/renova-project-template/railway-validation.md) | em execução; email pendente |
+| Como publicar e enviar convites no Railway? | [process/railway.md](process/railway.md) | em validação no piloto |
 | Mapa de telas? | [specs/feature-map.md](specs/feature-map.md) | atual |
 | Como transformar o template na base Renova? | [specs/renova-project-template/requirements.md](specs/renova-project-template/requirements.md) | atual, base local entregue |
 | Quais escolhas foram confirmadas? | [specs/renova-project-template/context.md](specs/renova-project-template/context.md) | atual |

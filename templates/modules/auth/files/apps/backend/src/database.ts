@@ -1,4 +1,4 @@
-import { createAuthService } from '@renova/auth';
+import { createAuthService, reportAuthEvent } from '@renova/auth';
 import { createRecordsRepository } from './modules/records/records.repository.js';
 import type { Database } from '@renova/db-types';
 import { checkReadiness } from '@renova/dbmigrator';
@@ -19,12 +19,24 @@ export function createDatabase(env: BackendEnv, onConnectionError: () => void = 
   });
   pool.on('error', onConnectionError);
   const database = new Kysely<Database>({ dialect: new PostgresDialect({ pool }) });
-  const auth = createAuthService(env);
+  const auth = createAuthService(env, { onEvent: reportAuthEvent });
   return {
     auth,
     records: createRecordsRepository(database),
     examples: createExampleRepository(database),
-    readiness: () => checkReadiness(pool),
+    readiness: () =>
+      checkReadiness(
+        pool,
+        undefined,
+        env.NODE_ENV === 'production'
+          ? {
+              target: 'railway',
+              expectedDatabase: env.RENOVA_DB_NAME ?? '',
+              projectId: env.RAILWAY_PROJECT_ID ?? '',
+              environmentId: env.RAILWAY_ENVIRONMENT_ID ?? '',
+            }
+          : undefined,
+      ),
     close: async () => {
       await auth.close();
       await database.destroy();

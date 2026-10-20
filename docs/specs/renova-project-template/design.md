@@ -37,7 +37,7 @@ flowchart LR
   R --> L[Local: Vite e Fastify + Postgres Docker]
   R --> G[GitHub Actions: Blacksmith]
   G --> D[Publicação aprovada]
-  D --> W[Railway: frontend + backend + Postgres]
+  D --> W[Railway: app Vite/Fastify + Postgres]
 ```
 
 ## Fronteira de composição
@@ -73,8 +73,8 @@ scripts/deploy/                 futuro: plano, aplicação e verificação Railw
 renova.project.json             identidade e capacidades, sem segredos
 .renova/                       estado local ignorado de projeto, setup e banco
 docker-compose.yml             Postgres; caixa de email apenas com auth
-Dockerfile.frontend              futuro: build raiz e Caddy
-Dockerfile.backend               futuro: backend e runner de migration
+Dockerfile                       build Vite/Fastify e runner de migration
+.railway/railway.ts               IaC nativo, somente serviço app
 railway.frontend.json            futuro: configuração declarativa do serviço
 railway.backend.json             futuro: configuração declarativa do serviço
 ```
@@ -300,8 +300,9 @@ essa prova. O catálogo não mostra informações internas, tokens ou dados reai
 
 ## Railway e CI
 
-Frontend Caddy público, proxy `/api` para Fastify privado, Postgres privado e volume
-próprio. Build usa raiz do monorepo e inclui dependências compartilhadas nos filtros.
+Um serviço Fastify público serve o build Vite e `/api` na mesma origem, mais
+Postgres privado com volume próprio. O desenvolvimento mantém Vite e Fastify
+separados. Esta simplificação elimina Caddy, API_UPSTREAM e um terceiro recurso. Build usa raiz do monorepo e inclui dependências compartilhadas nos filtros.
 Mesma versão major de Postgres em local, CI e piloto; selecionar e fixar versão
 suportada durante a execução, sem reproduzir divergência 15/18 observada na origem.
 
@@ -326,11 +327,11 @@ adicional explícita. Nenhuma migração da infraestrutura Renova atual faz part
 do plano. Banco local nunca é copiado implicitamente. Backups e restauração em
 destino descartável devem ser ensaiados antes de admitir dados reais.
 
-Pré-deploy do backend aplica migrations compatíveis com release anterior e
-aborta em falha; não rodar migration no build ou em toda inicialização de réplica.
+Pré-deploy aplica migrations e aborta em falha; não rodar migration no build ou em toda inicialização de réplica.
 `/health` é liveness; `/ready` verifica DB e versão esperada de schema com resposta
 sanitizada. Não declarar frontend saudável como prova de fluxo autenticado.
-Rollback de imagem não reverte banco; mudança destrutiva precisa plano separado.
+Readiness exige histórico exato: uma imagem antiga não é automaticamente compatível
+com schema novo. Rollback de imagem não reverte banco; mudança destrutiva precisa plano separado.
 
 GitHub Actions executa os jobs em Blacksmith. Labels configuradas:
 `blacksmith-2vcpu-ubuntu-2404` para checks rápidos e
@@ -428,3 +429,13 @@ Verificador em contexto fresco reconstrói cobertura e aplica falhas controladas
 em cópia descartável: remover ownership, aceitar origem indevida, expor secret
 sentinela, tornar E2E não bloqueante e apontar teste a DB proibido. Mutante sobrevivente
 reabre a tarefa. Não executar esses ensaios no projeto real ou em produção.
+
+### Incremento Railway autorizado em 20/10/2026
+
+Implementação e piloto isolado autorizados pelo usuário. Guia operacional em
+[railway.md](../../process/railway.md), com envio Resend HTTPS e Mailpit preservado
+localmente. Recursos iniciais são criados pelo responsável no Railway; o template
+usa plano nativo IaC para configurar somente a aplicação. Não implementa um motor
+próprio de infraestrutura nem autoriza remover bancos. `deploy:setup` vincula um
+banco novo; `deploy:prepare`/`deploy:apply` publicam um commit aprovado no CI.
+O perfil público dispensa email. A validação remota é registrada separadamente.

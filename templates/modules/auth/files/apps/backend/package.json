@@ -25,7 +25,8 @@
     "pg": "8.23.1",
     "zod": "4.6.5",
     "@renova/auth": "workspace:*",
-    "better-auth": "1.7.11"
+    "better-auth": "1.7.11",
+    "@fastify/static": "10.1.6"
   },
   "devDependencies": {
     "@types/pg": "8.23.1",

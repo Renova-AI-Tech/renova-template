@@ -37,7 +37,7 @@ A execução local não depende de GitHub, Railway, Sentry, serviço de email ex
 ou ferramenta de tarefas. Em clone novo, o perfil com login materializa uma receita
 fixa e prepara Mailpit em loopback. Sem login, não instala biblioteca de auth nem
 cria tabelas, segredos ou caixa de email. Veja [acesso](authentication.md).
-Railway permanece indisponível no configurador. Trocar o perfil de um projeto já
+O configurador prepara o ambiente local. A publicação separada está no [guia Railway](railway.md). Trocar o perfil de um projeto já
 preparado ou remover auth automaticamente é recusado.
 
 `--plan` não verifica o Docker nem instala dependências. `--yes` aceita a preparação

@@ -165,3 +165,16 @@ Cada sessão longa acrescenta um bloco no topo. Não apague histórico.
 - Layout alinhado ao padrão de mercado (AGENTS.md mapa, docs/ indexado, 3 skills, check-quick/full).
 - Sample money + UI 43123 verdes em `test:loop` / `check:quick`.
 - E2E existe; não entra no pre-push.
+
+## 2026-10-20 — Railway e convites externos em validação
+
+- Incremento autorizado em `codex/railway-email`, a partir de main `4ec710c`.
+- Container único Vite/Fastify, Postgres privado, bootstrap com papéis separados,
+  plano IaC nativo e publicação de commit aprovado no CI. Perfil público sem email.
+- Transporte Resend no perfil com login; Mailpit local preservado. Revisões frescas
+  corrigiram identidade runtime, origem com ponto final e senhas em SQL/logs.
+- `pnpm check:quick` passou; matriz completa dos perfis/containers em execução.
+- Piloto criado isoladamente no Railway; bootstrap e credenciais de ambos os
+  papéis comprovados pela rede privada. Nenhuma alteração no projeto Renova existente.
+- Resend/DNS e destinatário real aguardam definição; sem prova de entrega externa,
+  sem merge/liberação. [Evidência por camada](../specs/renova-project-template/railway-validation.md).

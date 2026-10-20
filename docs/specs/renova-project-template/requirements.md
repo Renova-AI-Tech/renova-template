@@ -130,7 +130,7 @@ Renova. Teste independente: plano sem mutações e depois piloto remoto isolado.
 
 1. WHEN prepare gera o plano Railway THEN ele SHALL apresentar workspace, projeto, ambiente, serviços, recursos, referências de variáveis e ações sem criar, alterar ou publicar recursos. (REQ-025)
 2. IF apply não recebe destino explícito e aprovação correspondente ao plano atual, incluindo commit e conteúdo a publicar, THEN ele SHALL recusar qualquer mutação remota. (REQ-026)
-3. WHEN uma aplicação é publicada THEN o navegador SHALL acessar API pela mesma origem do frontend, com backend e Postgres acessíveis pela rede privada do ambiente. (REQ-027)
+3. WHEN uma aplicação é publicada THEN o navegador SHALL acessar API pela mesma origem do frontend, com frontend e API no mesmo serviço Fastify e Postgres acessível somente pela rede privada do ambiente. (REQ-027)
 4. IF migration falha ou banco está indisponível THEN readiness SHALL indicar indisponibilidade sem divulgar detalhes, e a publicação não SHALL ser declarada concluída. (REQ-028)
 5. WHEN publicação é verificada THEN o relatório SHALL separar imagem/healthcheck, jornada funcional, CI do commit, domínio/TLS e recuperação de dados, sem usar um deles como prova dos demais. (REQ-029)
 6. WHEN um projeto local passa a usar Railway THEN a configuração SHALL preservar o código e os dados locais, criando configuração remota própria sem copiar automaticamente o banco local. (REQ-030)
