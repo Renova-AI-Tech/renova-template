@@ -109,7 +109,7 @@ export function HomePage() {
           </div>
         </details>
         <footer className="starter-footer">
-          Base local, sem login. Autenticação e publicação no Railway serão etapas separadas.
+          Seu projeto roda localmente. Consulte a documentação antes de publicar no Railway.
         </footer>
       </main>
     </>

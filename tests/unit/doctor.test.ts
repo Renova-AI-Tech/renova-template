@@ -6,9 +6,11 @@ import { prepareLocalDatabase } from '../../scripts/db/local.mjs';
 import { diagnose, doctorMain, formatDiagnosis } from '../../scripts/project/doctor.mjs';
 
 const roots: string[] = [];
-const config = JSON.parse(
-  await readFile(new URL('../../renova.project.json', import.meta.url), 'utf8'),
-);
+const config = {
+  ...JSON.parse(await readFile(new URL('../../renova.project.json', import.meta.url), 'utf8')),
+  profile: 'public',
+  capabilities: [],
+};
 const probes = {
   nodeVersion: '24.0.0',
   run: async (command: string) => ({ stdout: command === 'pnpm' ? '10.33.4' : 'available' }),
@@ -71,7 +73,7 @@ it('mostra como preparar clone sem dependencias nem ambiente', async () => {
   });
 });
 
-it('recusa perfil indisponivel antes de executar comandos', async () => {
+it('recusa perfil com login sem módulo instalado antes de executar comandos', async () => {
   const root = await fixture(false);
   await writeFile(
     join(root, 'renova.project.json'),

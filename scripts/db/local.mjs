@@ -93,7 +93,11 @@ export function planLocalDatabase({ projectRoot, projectSlug, target, port, proj
   };
 }
 
-export async function createDatabaseEnvironment(plan, { preferredPorts = false } = {}) {
+export async function createDatabaseEnvironment(
+  plan,
+  { preferredPorts = false, profile = 'public' } = {},
+) {
+  if (!['public', 'authenticated'].includes(profile)) throw new Error('Perfil local inválido.');
   const password = () => randomBytes(32).toString('hex');
   const migratorPassword = password();
   const runtimePassword = password();
@@ -102,6 +106,18 @@ export async function createDatabaseEnvironment(plan, { preferredPorts = false }
     plan.port,
     frontendPort,
   ]);
+  const auth = {};
+  if (profile === 'authenticated') {
+    const smtp = await allocateLoopbackPort(0, [plan.port, frontendPort, backendPort]);
+    const mailpit = await allocateLoopbackPort(0, [plan.port, frontendPort, backendPort, smtp]);
+    Object.assign(auth, {
+      AUTH_SECRET: password(),
+      SMTP_HOST: '127.0.0.1',
+      SMTP_PORT: String(smtp),
+      MAILPIT_PORT: String(mailpit),
+      AUTH_EMAIL_FROM: 'acesso@renova.local',
+    });
+  }
   const connection = (role, secret) =>
     `postgresql://${role}:${secret}@127.0.0.1:${plan.port}/${plan.databaseName}`;
   return {
@@ -118,7 +134,8 @@ export async function createDatabaseEnvironment(plan, { preferredPorts = false }
     HOST: '127.0.0.1',
     PORT: String(backendPort),
     FRONTEND_URL: `http://127.0.0.1:${frontendPort}`,
-    PROFILE: 'public',
+    PROFILE: profile,
+    ...auth,
   };
 }
 
@@ -148,6 +165,7 @@ export async function runCompose(root, env, args) {
 }
 
 export function validateDatabaseEnvironment(plan, env) {
+  validateLocalProfile(env);
   for (const key of ['DATABASE_URL', 'MIGRATION_DATABASE_URL']) {
     assertLocalDatabaseTarget(env[key], {
       expectedDatabase: plan.databaseName,
@@ -179,6 +197,47 @@ export function validateDatabaseEnvironment(plan, env) {
   ) {
     throw new Error('Credenciais do runtime e do migrador devem permanecer separadas.');
   }
+}
+
+export function validateLocalProfile(env, expectedProfile = env.PROFILE) {
+  if (!['public', 'authenticated'].includes(expectedProfile) || env.PROFILE !== expectedProfile)
+    throw new Error('Perfil do ambiente diverge do projeto.');
+  const authKeys = ['AUTH_SECRET', 'SMTP_HOST', 'SMTP_PORT', 'MAILPIT_PORT', 'AUTH_EMAIL_FROM'];
+  if (expectedProfile === 'public') {
+    if (authKeys.some((key) => env[key] !== undefined))
+      throw new Error('Login não pertence ao perfil público.');
+    return;
+  }
+  const ports = [
+    env.POSTGRES_HOST_PORT,
+    env.PORT,
+    new URL(env.FRONTEND_URL).port,
+    env.SMTP_PORT,
+    env.MAILPIT_PORT,
+  ];
+  if (
+    !/^[a-f0-9]{64}$/.test(env.AUTH_SECRET ?? '') ||
+    env.SMTP_HOST !== '127.0.0.1' ||
+    env.AUTH_EMAIL_FROM !== 'acesso@renova.local' ||
+    ports.some((port) => !/^\d+$/.test(port ?? '') || Number(port) < 1 || Number(port) > 65535) ||
+    new Set(ports.map(Number)).size !== ports.length
+  )
+    throw new Error('Configuração de login/email local inválida.');
+}
+
+export async function startMailpit(root, handle) {
+  validateDatabaseEnvironment(handle.plan, handle.env);
+  if (handle.env.PROFILE !== 'authenticated')
+    throw new Error('Email local exige perfil com login.');
+  await runCompose(root, handle.env, [
+    'up',
+    '--detach',
+    '--wait',
+    '--wait-timeout',
+    '60',
+    'mailpit',
+  ]);
+  return handle;
 }
 
 async function inspectPath(path) {
@@ -391,7 +450,6 @@ export async function isPendingLocalDatabaseFile(root, relativePath) {
     const config = parseProjectConfig(
       JSON.parse(await readRegularFile(join(projectRoot, 'renova.project.json'))),
     );
-    if (config.profile !== 'public') return false;
     const targetPath = join(projectRoot, relativePath);
     const targetStat = await inspectPath(targetPath);
     if (
@@ -420,6 +478,7 @@ export async function isPendingLocalDatabaseFile(root, relativePath) {
       const prepared = await readPreparation(journal, projectRoot, config.project.slug, {
         completed: name.startsWith('db-setup-complete-'),
       });
+      validateLocalProfile(prepared.env, config.profile);
       const state = await readRegularFile(join(directory, 'db-state.json'));
       if (state !== undefined && state !== prepared.state) return false;
       const environment = await readRegularFile(join(projectRoot, '.env'));
@@ -444,8 +503,7 @@ export async function prepareLocalDatabase(root, { onCheckpoint = async () => {}
   const config = parseProjectConfig(
     JSON.parse(await readRegularFile(join(projectRoot, 'renova.project.json'))),
   );
-  if (config.profile !== 'public')
-    throw new Error('Esta etapa local suporta somente o perfil público.');
+
   const directory = join(projectRoot, '.renova');
   await safeDirectory(directory, true);
   const rootIdentity = digest(projectRoot).slice(0, 12);
@@ -482,6 +540,7 @@ export async function prepareLocalDatabase(root, { onCheckpoint = async () => {}
       if (envText === undefined) throw new Error('Arquivo .env ausente; estado local preservado.');
       const env = parseEnv(envText);
       validateDatabaseEnvironment(state, env);
+      validateLocalProfile(env, config.profile);
       return { plan: state, env };
     }
     if (!hasPending && !stages.length && (envText !== undefined || state)) {
@@ -491,7 +550,8 @@ export async function prepareLocalDatabase(root, { onCheckpoint = async () => {}
     }
     if (stages.length) {
       const stage = join(directory, stages[0]);
-      await readPreparation(stage, projectRoot, config.project.slug);
+      const staged = await readPreparation(stage, projectRoot, config.project.slug);
+      validateLocalProfile(staged.env, config.profile);
       await rename(stage, pending);
     } else if (!hasPending) {
       const plan = planLocalDatabase({
@@ -501,7 +561,10 @@ export async function prepareLocalDatabase(root, { onCheckpoint = async () => {}
         port: await allocateLoopbackPort(),
         projectId: randomUUID(),
       });
-      const env = await createDatabaseEnvironment(plan, { preferredPorts: true });
+      const env = await createDatabaseEnvironment(plan, {
+        preferredPorts: true,
+        profile: config.profile,
+      });
       const environment = `${Object.entries(env)
         .map(([key, value]) => `${key}=${value}`)
         .join('\n')}\n`;
@@ -517,6 +580,7 @@ export async function prepareLocalDatabase(root, { onCheckpoint = async () => {}
       await rename(stage, pending);
     }
     const prepared = await readPreparation(pending, projectRoot, config.project.slug);
+    validateLocalProfile(prepared.env, config.profile);
     // Check all existing destinations before publishing either file.
     if (
       (envText !== undefined && envText !== prepared.environment) ||
@@ -553,6 +617,7 @@ export async function readLocalDatabase(root) {
     assertMatchingPlan(plan, projectRoot, config.project.slug);
     const env = parseEnv(await readRegularFile(join(projectRoot, '.env')));
     validateDatabaseEnvironment(plan, env);
+    validateLocalProfile(env, config.profile);
     return { plan, env };
   } catch {
     throw new Error(
@@ -607,7 +672,10 @@ export async function createTestDatabase(root, slug = 'integration') {
     port: await allocateLoopbackPort(),
     projectId: randomUUID(),
   });
-  const handle = { plan, env: await createDatabaseEnvironment(plan) };
+  const config = parseProjectConfig(
+    JSON.parse(await readRegularFile(join(root, 'renova.project.json'))),
+  );
+  const handle = { plan, env: await createDatabaseEnvironment(plan, { profile: config.profile }) };
   try {
     return await startDatabase(root, handle);
   } catch (error) {

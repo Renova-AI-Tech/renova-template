@@ -131,18 +131,28 @@ describe('spec-tests', () => {
   });
 
   it('aceita declaracao Playwright no arquivo citado', () => {
-    const root = fixture({
-      'docs/specs/demo/tasks.md': task('', "test('jornada')", 'tests/e2e/demo.spec.ts'),
-      'tests/e2e/demo.spec.ts': "test('jornada', async () => {})",
-    });
-    expect(runHarness({ root, config: configWith('spec-tests') }).violations).toEqual([]);
+    for (const path of [
+      'tests/e2e/demo.spec.ts',
+      'templates/module/files/tests/e2e/demo.spec.ts',
+    ]) {
+      const root = fixture({
+        'docs/specs/demo/tasks.md': task('', "test('jornada')", path),
+        [path]: "test('jornada', async () => {})",
+      });
+      expect(runHarness({ root, config: configWith('spec-tests') }).violations).toEqual([]);
+    }
   });
 
   it('recusa arquivo de evidencia inexistente', () => {
-    const root = fixture({ 'docs/specs/demo/tasks.md': task() });
-    expect(runHarness({ root, config: configWith('spec-tests') }).violations[0]?.message).toMatch(
-      /inexistente/,
-    );
+    for (const path of [
+      'tests/unit/evidence.test.ts',
+      'templates/module/files/tests/unit/evidence.test.ts',
+    ]) {
+      const root = fixture({ 'docs/specs/demo/tasks.md': task('', "it('evidencia')", path) });
+      expect(runHarness({ root, config: configWith('spec-tests') }).violations[0]?.message).toMatch(
+        /inexistente/,
+      );
+    }
   });
 
   it('recusa nome citado fora de declaracao de teste', () => {
@@ -162,13 +172,18 @@ describe('spec-tests', () => {
       "it.skip('evidencia', () => {});",
       "/* test('evidencia', () => {}) */",
     ]) {
-      const root = fixture({
-        'docs/specs/demo/tasks.md': task(),
-        'tests/unit/evidence.test.ts': content,
-      });
-      expect(runHarness({ root, config: configWith('spec-tests') }).violations[0]?.message).toMatch(
-        /não encontrado/,
-      );
+      for (const path of [
+        'tests/unit/evidence.test.ts',
+        'templates/module/files/tests/unit/evidence.test.ts',
+      ]) {
+        const root = fixture({
+          'docs/specs/demo/tasks.md': task('', "it('evidencia')", path),
+          [path]: content,
+        });
+        expect(
+          runHarness({ root, config: configWith('spec-tests') }).violations[0]?.message,
+        ).toMatch(/não encontrado/);
+      }
     }
   });
 

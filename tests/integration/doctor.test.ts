@@ -9,11 +9,16 @@ import pg from 'pg';
 import { afterEach, expect, it } from 'vitest';
 import { parseEnv } from '../../apps/backend/src/env.js';
 import { createApp } from '../../apps/backend/src/server/app.js';
+import { publicProcedure, router } from '../../apps/backend/src/server/trpc.js';
 import { prepareLocalDatabase } from '../../scripts/db/local.mjs';
 import { diagnose, probeDatabase } from '../../scripts/project/doctor.mjs';
 
 const repository = fileURLToPath(new URL('../../', import.meta.url));
-const config = JSON.parse(await readFile(join(repository, 'renova.project.json'), 'utf8'));
+const config = {
+  ...JSON.parse(await readFile(join(repository, 'renova.project.json'), 'utf8')),
+  profile: 'public',
+  capabilities: [],
+};
 const roots: string[] = [];
 const servers: ReturnType<typeof createServer>[] = [];
 const probes = {
@@ -103,10 +108,17 @@ it('detecta servico parcial e servidor alheio sem interromper nenhum processo', 
 
 it('confirma contrato HTTP de frontend API e proxy sem gravar arquivos', async () => {
   const { root, handle } = await fixture();
-  const backend = await createApp(parseEnv(handle.env), {
-    readiness: async () => true,
-    logStream: { write: () => {} },
-  });
+  const backend = await createApp(
+    parseEnv({ ...process.env, FRONTEND_URL: handle.env.FRONTEND_URL, PORT: handle.env.PORT }),
+    {
+      // This fixture exercises health/proxy transport, without an identity database.
+      router: router({
+        system: router({ health: publicProcedure.query(() => ({ status: 'ok' as const })) }),
+      }),
+      readiness: async () => true,
+      logStream: { write: () => {} },
+    },
+  );
   try {
     await backend.listen({ host: '127.0.0.1', port: Number(handle.env.PORT) });
     await listen(Number(new URL(handle.env.FRONTEND_URL).port), async (request, response) => {

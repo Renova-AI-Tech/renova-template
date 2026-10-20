@@ -38,15 +38,23 @@ oficial acompanha o clone, sem dependência do monorepo original em execução.
 
 O setup configura identidade e prepara o ambiente; não sobrescreve os workspaces.
 O diagnóstico somente observa. O plano `--plan` não instala nem inicia recursos.
-Todos usam o mesmo manifesto validado; login/Railway não ficam parcialmente ativados.
+Todos usam o mesmo manifesto validado; Railway não fica parcialmente ativado.
+Auth é uma receita fixa em `templates/modules/auth`, fora dos workspaces. O primeiro
+setup do perfil autenticado verifica os arquivos originais e materializa o módulo
+com seu lockfile. Depois disso, o código pertence ao projeto; repetir setup não o
+recopia. Projetos já preparados e arquivos customizados impedem essa instalação.
 
 ## Fronteiras de segurança
 
-O perfil entregue é público e somente leitura: três exemplos sintéticos, nenhuma
-rota/tabela de identidade e nenhuma operação de escrita anônima. Autenticação
-ainda não está instalada; registrar política privada falha.
+O perfil público é somente leitura: três exemplos sintéticos, nenhuma rota/tabela
+de identidade e nenhuma operação de escrita anônima. Registrar política privada
+sem módulo auth falha. O perfil autenticado acrescenta Better Auth, caixa de email
+local e registros privados por proprietário; o exemplo público não recebe dono
+implícito e continua somente leitura.
 
-O processo da API usa credencial limitada a leitura; o migrador usa papel separado.
+O processo da API usa credencial limitada às operações do perfil; o migrador usa
+papel separado. No perfil público ela só lê; no autenticado escreve somente nas
+tabelas de identidade e registros privados, sem DDL nem acesso administrativo.
 Migrations recusam alvos remotos, identidade divergente e histórico alterado.
 Readiness verifica conexão e integridade do histórico de migrations; retorna 503
 se estiver indisponível, pendente ou divergente. Não exige tabelas de demonstração.
@@ -56,4 +64,6 @@ indica apenas que o processo responde. Migração não acontece ao iniciar a API
 Segredos ficam no ambiente do servidor. O frontend recebe apenas nome de projeto
 público; não recebe DATABASE_URL. Erros públicos são genéricos e têm request ID.
 Produção requer configuração própria; Docker de aplicação, proxy de produção,
-sessões, deploy e verificação Railway são etapas futuras.
+entrega de email externa, deploy e verificação Railway são etapas futuras. O perfil
+autenticado recusa produção até essa etapa. Consulte o
+[guia de acesso](docs/process/authentication.md) para os fluxos locais e limites.

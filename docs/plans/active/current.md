@@ -9,8 +9,12 @@ ficam nos planos locais; ferramenta externa de tarefas é opcional.
   `@renova/ui`, `@renova/db-types` e `@renova/dbmigrator`.
 - Postgres Docker isolado por clone, papéis separados e migrations com lock/checksum.
 - Perfil público somente leitura com três exemplos sintéticos em `/referência`
-  (alias `/referencia`). `/` começa com um guia substituível pelo produto. Sem auth instalada.
-- Configurador `pnpm run setup`: nome + confirmação ou JSON, plano sem escrita e
+  (alias `/referencia`). `/` começa com um guia substituível pelo produto. Sem auth no runtime público.
+- Perfil opcional com login para clones novos: contas liberadas pelo responsável,
+  ativação/recuperação por email local, sessão limitada e registros por proprietário.
+  Veja o [guia de acesso](../../process/authentication.md) e a
+  [validação dos dois perfis](../../specs/renova-project-template/auth-validation.md).
+- Configurador `pnpm run setup`: nome + perfil + confirmação ou JSON, plano sem escrita e
   preparação retomável. `pnpm run doctor` oferece diagnóstico somente leitura
   em texto ou JSON, com próximos passos.
 - Logo oficial Renova local, sidebar refinada e galeria separada do produto.
@@ -24,8 +28,8 @@ ficam nos planos locais; ferramenta externa de tarefas é opcional.
   na [validação independente](../../specs/renova-project-template/local-validation.md):
   141 testes e 3/3 falhas controladas detectadas. O incremento posterior de
   [onboarding e referência](../../specs/renova-project-template/onboarding-validation.md)
-  passou em 204 testes e 3/3 falhas controladas detectadas. O plano completo inclui
-  geração dos dois perfis, auth e publicação futuras.
+  passou em 204 testes e 3/3 falhas controladas detectadas. Publicação Railway
+  e adição de auth a produtos já personalizados continuam etapas futuras.
 - [Simplificação validada localmente](../../specs/renova-project-template/simplification-validation.md):
   configurador só pede nome, readiness não exige tabela de exemplo, legado retirado.
 - Workflow Blacksmith preparado, E2E bloqueante e agregador que recusa skip/falha.
@@ -47,4 +51,4 @@ ficam nos planos locais; ferramenta externa de tarefas é opcional.
 - [ ] Personalizar nome/slug no setup e responsáveis de revisão, quando aplicável.
 - [ ] Validar onboarding com pessoas técnicas e não técnicas; ensaio de agente não substitui aceite humano.
 - [ ] Ativar CODEOWNERS com usuários reais se o projeto quiser revisão por responsáveis.
-- [ ] Fechar método de autenticação/email e destino/acesso/custo Railway nas etapas próprias.
+- [ ] Definir entrega remota de email e destino/acesso/custo Railway na etapa de publicação.

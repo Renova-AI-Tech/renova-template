@@ -2,8 +2,8 @@
 
 Monorepo independente com **React/Vite, Fastify, Postgres e design system Renova**.
 Cada projeto tem seu código, banco e credenciais próprios. O configurador prepara
-a base local sem exigir contas corporativas. Nesta etapa está disponível o perfil
-**sem login, somente leitura**. Login e publicação Railway seguem no
+a base local sem exigir contas corporativas. Escolha **sem login, somente leitura**
+ou **com login por convite** ao iniciar um projeto. A publicação Railway segue no
 [plano](docs/specs/renova-project-template/tasks.md).
 
 ## Começar
@@ -17,16 +17,21 @@ pnpm run setup
 pnpm dev
 ```
 
-O configurador pede apenas o nome do projeto. Nesta versão, a base é
-**sem login** e **local**; outras opções só aparecerão quando estiverem disponíveis.
-Confira o resumo e confirme; ele instala as dependências,
-prepara o Postgres e aplica as migrations. Não é preciso editar `.env`.
+Em um clone novo, o configurador pede o nome e se o projeto precisa de login.
+Confira o resumo e confirme; ele instala as dependências, prepara o Postgres e
+aplica as migrations. Com login, prepara também uma caixa de email local.
+Não é preciso editar `.env`. Repetir o setup preserva o perfil já instalado.
 Não use `pnpm setup`: esse é um comando do próprio pnpm, por isso o `run` é necessário.
 
 Abra o endereço mostrado pelo Vite. **A página `/` começa com um guia de primeiros passos**:
 explore a referência, descreva sua ideia para a IA e substitua o guia pelo seu produto. Para consultar exemplos e componentes instalados,
 abra **`/referência`** (também funciona `/referencia`) nesse mesmo endereço.
 A referência tem logo oficial, tokens, fontes e componentes Renova prontos para reutilizar.
+
+No perfil com login, `/` exige uma conta liberada pelo responsável. Siga o
+[guia de acesso](docs/process/authentication.md) para enviar o convite local e
+definir sua senha. `/minha-area` demonstra registros privados por proprietário;
+`/referência` continua pública, com dados sintéticos. Não existe cadastro público.
 
 Se algo falhar, execute `pnpm run doctor`. O diagnóstico mostra o problema e a
 próxima ação sem alterar o projeto. Depois de corrigir a causa, repita o setup;
@@ -41,8 +46,10 @@ apagando os arquivos de controle. Consulte [operações](docs/process/operations
 ## Trabalhar com IA ou sem perguntas
 
 Peça à IA para ler [AGENTS.md](AGENTS.md). Parta do `renova.project.json` deste clone,
-altere somente nome/slug antes do primeiro setup e preserve o campo `origin`.
+altere nome/slug antes do primeiro setup e preserve o campo `origin`.
 Você também pode fornecer uma cópia desse JSON com `--config caminho.json`.
+Para login, use `profile: "authenticated"` e `capabilities: ["auth"]`; sem login,
+use `profile: "public"` e `capabilities: []`.
 
 ```bash
 pnpm run setup -- --config renova.project.json --plan --json
@@ -78,9 +85,11 @@ registram a origem da base, **não são um backlog obrigatório do seu projeto**
 anote o comportamento substituído e a nova spec, preservando os relatórios
 históricos. Mantenha as verificações de segurança e os gates.
 
-O usuário runtime do banco apenas lê dados. Para introduzir escrita ou informação
-privada, defina a política da feature e suas permissões antes de ampliar os acessos.
-O perfil com login será separado, com contas liberadas pelo responsável, sem cadastro público.
+Sem login, o usuário runtime do banco apenas lê dados e o projeto não instala auth.
+Com login, a escrita fica limitada às tabelas de identidade e ao exemplo privado;
+cada operação privada verifica a sessão e o proprietário. Defina a política de
+novas features antes de ampliar os acessos. A instalação automática de auth é
+para clones novos; o setup recusa trocar o perfil de um produto já preparado.
 
 ## Validar
 

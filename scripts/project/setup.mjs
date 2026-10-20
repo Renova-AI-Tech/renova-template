@@ -14,7 +14,7 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
-import { prepareLocalDatabase, startDatabase } from '../db/local.mjs';
+import { prepareLocalDatabase, startDatabase, startMailpit } from '../db/local.mjs';
 import { buildMigrator, migrateLocalDatabase } from '../db/migrate.mjs';
 import { applyProject, planProject, ProjectSetupError } from './generate.mjs';
 import { collectSetupConfig, confirmPlan, parseSetupArguments, summarizePlan } from './prompts.mjs';
@@ -28,6 +28,7 @@ const labels = {
   environment: 'Preparar as credenciais locais',
   database: 'Iniciar o Postgres deste projeto',
   migrations: 'Aplicar e verificar o schema do banco',
+  mail: 'Iniciar a caixa de email de teste neste computador',
 };
 const remedies = {
   prerequisites: 'Execute pnpm run doctor para identificar o pré-requisito que precisa de atenção.',
@@ -36,6 +37,7 @@ const remedies = {
   environment: 'Execute pnpm run doctor para conferir o ambiente preservado.',
   database: 'Abra o Docker e confira se a porta do banco está livre.',
   migrations: 'Execute pnpm run doctor; não edite migrations já aplicadas.',
+  mail: 'Execute pnpm run doctor; confira o Docker e as portas da caixa de email local.',
 };
 
 export async function checkPrerequisites(root, run = execute) {
@@ -137,7 +139,14 @@ const defaults = {
     }),
   environment: prepareLocalDatabase,
   database: startDatabase,
+  mail: startMailpit,
   migrations: async (root, handle) => {
+    if (handle.env.PROFILE === 'authenticated')
+      await execute('pnpm', ['--filter', '@renova/auth', 'build'], {
+        cwd: root,
+        timeout: 60_000,
+        maxBuffer: 1024 * 1024,
+      });
     await buildMigrator(root);
     await migrateLocalDatabase(handle);
   },
@@ -159,7 +168,14 @@ export async function runSetup(root, config, { services = defaults, onStep = () 
     await services.prerequisites(root);
     result.steps.push({ id: active, status: 'ready' });
     release = await acquireLock(root);
-    for (const id of ['configuration', 'dependencies', 'environment', 'database', 'migrations']) {
+    for (const id of [
+      'configuration',
+      'dependencies',
+      'environment',
+      'database',
+      'migrations',
+      ...(config.profile === 'authenticated' ? ['mail'] : []),
+    ]) {
       active = id;
       onStep(labels[id]);
       await checkpoint(root, result);
@@ -170,12 +186,22 @@ export async function runSetup(root, config, { services = defaults, onStep = () 
           throw new ProjectSetupError('O projeto mudou durante o setup. Gere outro plano.');
         await applyProject(current);
       } else if (id === 'environment') handle = await services.environment(root);
-      else if (id === 'database' || id === 'migrations') await services[id](root, handle);
+      else if (id === 'database' || id === 'migrations' || id === 'mail')
+        await services[id](root, handle);
       else await services[id](root);
       result.steps.push({ id, status: 'ready' });
     }
     result.status = 'ready';
-    result.nextActions = ['pnpm dev', 'pnpm run doctor'];
+    result.nextActions = [
+      'pnpm dev',
+      'pnpm run doctor',
+      ...(config.profile === 'authenticated'
+        ? [
+            'Libere a primeira conta: pnpm auth:invite -- pessoa@example.test "Nome da pessoa"',
+            `Email local de teste: http://127.0.0.1:${handle.env.MAILPIT_PORT}`,
+          ]
+        : []),
+    ];
     await checkpoint(root, result);
     return { ...result, exitCode: 0 };
   } catch {
@@ -194,7 +220,7 @@ export async function runSetup(root, config, { services = defaults, onStep = () 
   }
 }
 
-const help = `Preparar seu projeto Renova neste computador\n\n  pnpm run setup\n  pnpm run setup -- --config renova.project.json --plan\n  pnpm run setup -- --config renova.project.json --yes\n\n--plan: somente apresenta o plano. --yes: aceita a preparação local.\n--json: saída estruturada; exige --config e, para aplicar, --yes.\nPré-requisitos: Node 24, pnpm 10.33.4 e Docker com Compose.\nNesta etapa: sem login e local. Railway e login ainda não estão disponíveis.\n`;
+const help = `Preparar seu projeto Renova neste computador\n\n  pnpm run setup\n  pnpm run setup -- --config renova.project.json --plan\n  pnpm run setup -- --config renova.project.json --yes\n\n--plan: somente apresenta o plano. --yes: aceita a preparação local.\n--json: saída estruturada; exige --config e, para aplicar, --yes.\nPré-requisitos: Node 24, pnpm 10.33.4 e Docker com Compose.\nEscolha sem login ou contas liberadas pelo responsável. Execução local; Railway ainda não está disponível.\n`;
 
 export async function setupMain(
   root,

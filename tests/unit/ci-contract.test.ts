@@ -10,21 +10,72 @@ describe('contrato CI Blacksmith (REQ-031, REQ-039)', () => {
     const command = workflow.jobs.required.steps[0].run;
     for (const result of ['failure', 'cancelled', 'skipped', 'pending', '']) {
       for (const env of [
-        { QUALITY_RESULT: result, FULL_RESULT: 'success' },
-        { QUALITY_RESULT: 'success', FULL_RESULT: result },
+        {
+          QUALITY_RESULT: result,
+          FULL_RESULT: 'success',
+          PROFILES_RESULT: 'success',
+          SOURCE_REPOSITORY: 'Renova-AI-Tech/renova-template',
+        },
+        {
+          QUALITY_RESULT: 'success',
+          FULL_RESULT: result,
+          PROFILES_RESULT: 'success',
+          SOURCE_REPOSITORY: 'Renova-AI-Tech/renova-template',
+        },
+        {
+          QUALITY_RESULT: 'success',
+          FULL_RESULT: 'success',
+          PROFILES_RESULT: result,
+          SOURCE_REPOSITORY: 'Renova-AI-Tech/renova-template',
+        },
       ]) {
         expect(spawnSync('bash', ['-c', command], { env }).status).toBe(1);
       }
     }
     expect(
       spawnSync('bash', ['-c', command], {
-        env: { QUALITY_RESULT: 'success', FULL_RESULT: 'success' },
+        env: {
+          QUALITY_RESULT: 'success',
+          FULL_RESULT: 'success',
+          PROFILES_RESULT: 'success',
+          SOURCE_REPOSITORY: 'Renova-AI-Tech/renova-template',
+        },
       }).status,
     ).toBe(0);
   });
 
+  it('exige matriz no template e valida apenas o perfil escolhido em clones', () => {
+    expect(workflow.jobs.profiles.if).toBe("github.repository == 'Renova-AI-Tech/renova-template'");
+    const command = workflow.jobs.required.steps[0].run;
+    for (const profile of ['failure', 'cancelled', 'pending', 'success', '']) {
+      expect(
+        spawnSync('bash', ['-c', command], {
+          env: {
+            QUALITY_RESULT: 'success',
+            FULL_RESULT: 'success',
+            PROFILES_RESULT: profile,
+            SOURCE_REPOSITORY: 'Renova-AI-Tech/meu-produto',
+          },
+        }).status,
+      ).toBe(1);
+    }
+    expect(
+      spawnSync('bash', ['-c', command], {
+        env: {
+          QUALITY_RESULT: 'success',
+          FULL_RESULT: 'success',
+          PROFILES_RESULT: 'skipped',
+          SOURCE_REPOSITORY: 'Renova-AI-Tech/meu-produto',
+        },
+      }).status,
+    ).toBe(0);
+    expect(workflow.jobs.profiles.steps.map((step: { run?: string }) => step.run)).toContain(
+      'pnpm test:profiles',
+    );
+  });
+
   it('executa todos os jobs em Blacksmith sem fallback', () => {
-    expect(Object.keys(workflow.jobs)).toEqual(['quality', 'full', 'required']);
+    expect(Object.keys(workflow.jobs)).toEqual(['quality', 'full', 'profiles', 'required']);
     for (const job of Object.values(workflow.jobs) as Record<string, unknown>[]) {
       expect(job['runs-on']).toMatch(/^blacksmith-[24]vcpu-ubuntu-2404$/);
       expect(job['continue-on-error']).toBeUndefined();
@@ -35,7 +86,7 @@ describe('contrato CI Blacksmith (REQ-031, REQ-039)', () => {
     expect(workflow.on.pull_request.types).toContain('synchronize');
     expect(workflow.on.push.branches).toEqual(['main']);
     expect(workflow.jobs.required.if).toBe('always()');
-    expect(workflow.jobs.required.needs).toEqual(['quality', 'full']);
+    expect(workflow.jobs.required.needs).toEqual(['quality', 'full', 'profiles']);
     expect(workflow.jobs.quality.if).toBeUndefined();
   });
 

@@ -59,18 +59,21 @@ async function withQuestions({ input, output, ask }, run) {
   }
 }
 
-async function hasLocalIdentity(root) {
+async function readLocalIdentity(root) {
+  let keepSlug = false;
+  let keepProfile = false;
   for (const path of ['.env', '.renova/db-state.json', '.renova/project-state.json']) {
     try {
       await lstat(resolve(root, path));
-      return true;
+      keepSlug = true;
+      if (path !== '.renova/project-state.json') keepProfile = true;
     } catch (error) {
       if (error.code !== 'ENOENT') {
         throw new ProjectSetupError('Não foi possível conferir a identidade local do projeto.', 1);
       }
     }
   }
-  return false;
+  return { keepSlug, keepProfile };
 }
 
 function slugForName(name, current) {
@@ -106,12 +109,12 @@ export async function collectSetupConfig({
   }
   requireTerminal(input, output);
   const current = await readConfig(resolve(root, 'renova.project.json'));
-  const keepSlug = await hasLocalIdentity(root);
+  const { keepSlug, keepProfile } = await readLocalIdentity(root);
   return withQuestions({ input, output, ask }, async (question) => {
     const displayName =
       (await question(`Qual é o nome do projeto? [${current.project.displayName}] `)).trim() ||
       current.project.displayName;
-    return requireSupportedConfig({
+    const configured = requireSupportedConfig({
       ...current,
       project: {
         displayName,
@@ -121,6 +124,22 @@ export async function collectSetupConfig({
             : slugForName(displayName, current),
       },
     });
+    if (keepProfile || current.profile === 'authenticated') return configured;
+    const choice =
+      (
+        await question(
+          'Quem pode acessar? [1] Sem login (padrão) [2] Contas liberadas pelo responsável: ',
+        )
+      ).trim() || '1';
+    if (!['1', '2'].includes(choice))
+      throw new ProjectSetupError(
+        'Escolha 1 para sem login ou 2 para contas liberadas pelo responsável.',
+      );
+    return requireSupportedConfig({
+      ...configured,
+      profile: choice === '2' ? 'authenticated' : 'public',
+      capabilities: choice === '2' ? ['auth'] : [],
+    });
   });
 }
 
@@ -128,8 +147,8 @@ export function summarizePlan(plan) {
   const actions = { create: 'Criar', update: 'Atualizar', unchanged: 'Preservar' };
   return [
     `Projeto: ${plan.project.displayName} (${plan.project.slug})`,
-    'Perfil: Sem login. Destino: este computador.',
-    'Login e publicação no Railway ainda não estão disponíveis.',
+    `Perfil: ${plan.profile === 'authenticated' ? 'Com login; contas liberadas pelo responsável, sem cadastro público' : 'Sem login'}. Destino: este computador.`,
+    'Publicação no Railway ainda não está disponível.',
     'Arquivos de configuração:',
     ...plan.files.map((file) => `  ${actions[file.action]} ${file.path}`),
     ...plan.conflicts.map((conflict) => `Conflito em ${conflict.path}: ${conflict.message}`),

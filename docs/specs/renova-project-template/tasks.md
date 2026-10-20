@@ -2,7 +2,8 @@
 
 Spec: [requirements.md](requirements.md). Design: [design.md](design.md).
 Estado do plano: implementação local autorizada em 19/10/2026, começando pela
-base Vite/Fastify/Postgres/UI. Publicação e operações remotas não iniciadas.
+base Vite/Fastify/Postgres/UI. A autenticação opcional local está implementada e
+validada localmente em T-015–T-019. Publicação e configuração Railway não iniciadas.
 
 ## Execution Protocol
 
@@ -11,14 +12,15 @@ mas o clone gerado não depende de instalar uma skill pessoal. Manter a fonte em
 `docs/specs/`, sem uma árvore paralela `.specs/`.
 
 Usuário aprovou o plano e sua implementação local nesta sessão. Preparar o
-incremento local na branch `codex/renova-local-foundation`, preservando o planejamento
-existente. Pedido/spec local basta; ferramenta de tarefas ou vínculo externo não é obrigatório.
+incremento em branch descritiva, preservando o planejamento e trabalho existente.
+Pedido/spec local basta; ferramenta de tarefas ou vínculo externo não é obrigatório.
 Commit, push, PR, merge, custo, deploy e dados remotos têm autorizações próprias.
 
-S0 fecha: proposta de perfil público somente leitura, método de login,
-biblioteca após spike, entrega de email e responsáveis. Destino Railway, orçamento
-e acesso são exigidos antes da execução remota. Sem isso, continuar entregas
-locais independentes; não marcar piloto remoto ou humano como concluído.
+A base pública somente leitura já foi entregue. O incremento autorizado de
+auth usa Better Auth 1.7.11, email/senha, convite pelo responsável e Mailpit local;
+a decisão técnica está em [auth-spike.md](auth-spike.md). Destino Railway,
+provedor de email em produção, orçamento e acesso exigem a etapa remota.
+Sem isso, continuar entregas locais independentes; não marcar piloto remoto ou humano como concluído.
 Entrada fechada com contas liberadas pelo responsável e Blacksmith no CI já estão
 confirmados. Habilitação Blacksmith por repo e budget são condições do piloto CI.
 
@@ -39,7 +41,7 @@ financeiro retira apenas os seus testes; gates e testes de proteção permanecem
 | API e políticas | integration | Sucesso, erro, negação e efeito no DB/handler | tests/integration | pnpm test:integration |
 | DB e migrations | integration | Persistência, integridade, concorrência e alvo proibido | tests/integration | pnpm test:integration |
 | UI e acesso | e2e | Navegador real, teclado, mobile e falhas | tests/e2e | pnpm test:e2e |
-| Geração | integration + e2e | Ambos os perfis, lockfile, independência e ausência de auth | tests/profiles | pnpm test:profiles |
+| Geração | integration + e2e | Ambos os perfis, lockfile, independência e ausência de auth no público | tests/integration/auth-composition.test.ts + scripts/project/test-profiles.mjs | pnpm test:profiles |
 | Imagens | container + e2e | Build, proxy, startup, segredo sentinela e schema | tests/integration, tests/e2e | pnpm test:containers |
 | Deploy driver | integration com fake de transporte | Autoridade, falha parcial e retry; não prova provedor | tests/integration | test:integration filtrado |
 | Railway | provider + e2e | Serviços reais isolados e jornada nos dois perfis | tests/e2e/railway-pilot.spec.ts | Gate Remote |
@@ -59,7 +61,7 @@ na tarefa que primeiro o utiliza. Não simular sua existência durante esta roda
 | Browser | `pnpm test:e2e && pnpm check:quick` | Existente; alvo real adaptado em T-006 |
 | Full | `pnpm check:full` | Existente; integração corrigida em T-010 |
 | Spike | Runner Vitest do experimento T-015 + relatório da prova e decisão | Criado em T-015, não implica adoção automática |
-| Profiles | `pnpm test:profiles && pnpm check:full` | Futuro T-019 |
+| Profiles | `pnpm test:profiles && pnpm check:full` | Implementado em T-019; dois perfis validados localmente |
 | CI | Gates locais + execução Blacksmith/GitHub no SHA autorizado, com cache frio e falha/cancelamento/skip | Config T-020; execução remota exige App habilitado no repo e autorização |
 | Containers | `pnpm test:containers && pnpm check:full` | Futuro T-021; Docker isolado |
 | DeployDriver | `pnpm test:integration -- deploy-driver && pnpm check:quick` | Futuro T-025; fake só comprova lógica |
@@ -82,8 +84,9 @@ concluídas e ownership disjunto podem executar em paralelo.
 Root manifests, lockfile, scripts de gates e documentação consolidada
 têm um integrador; subagentes devolvem alterações de dependência para ele.
 Por solicitação explícita de Blacksmith, a configuração local do workflow foi
-antecipada junto dos gates. Isso não conclui T-020: matriz de perfis gerados,
-App habilitado e execução remota continuam dependendo das fases posteriores.
+antecipada junto dos gates. A matriz dos perfis integra o incremento auth; isso
+não conclui T-020. Execução no SHA final, cache frio, sentinelas e demais critérios
+ainda precisam de evidência própria. Clones não herdam habilitação do App.
 
 ### Phase 0: Evidência antes da implementação
 
@@ -345,7 +348,7 @@ inventar testes para satisfazer o parser atual.
 - **What:** Nome e confirmação do resumo; perfil/destino só são perguntados quando há alternativas implementadas. Execução declarativa sem TTY usa o mesmo schema.
 - **Depends on:** T-001, T-011
 - **Requirement:** REQ-002
-- **Done when:** Nenhuma escolha técnica de ORM/provider é obrigatória; input ausente sem TTY retorna código 2; escolhas interativas e declarativas geram o mesmo plano. Nesta etapa, o resumo informa sem login/local; login/Railway são recusados no JSON antes de qualquer escrita.
+- **Done when:** Nenhuma escolha técnica de ORM/provider é obrigatória; input ausente sem TTY retorna código 2; escolhas interativas e declarativas geram o mesmo plano. O incremento público validado oferece nome e confirmação; a extensão T-019 acrescenta a escolha entre os dois perfis somente no primeiro setup. Railway continua recusado antes de qualquer escrita.
 - **Tests:** unit; pelo menos 4 cenários nomeados, contagem real registrada na execução.
 - **Gate:** Quick (comando da tabela; incluir lint/types aplicáveis).
 - **Test:** `it('equivale escolhas interativas ao manifesto')` em `tests/unit/setup-prompts.test.ts`.
@@ -384,67 +387,69 @@ inventar testes para satisfazer o parser atual.
 - **Done when:** Página inicial apresenta guia, acesso à referência e ajuda de ambiente sem catálogo nem chamada à API demonstrativa; referência abre diretamente e após refresh nos dois endereços; logo correta carrega localmente; sidebar, teclado, foco e 390 px passam; instruções de humano/IA apontam o arquivo do produto separado dos exemplos.
 - **Tests:** e2e; pelo menos 4 cenários de rotas/marca além das jornadas existentes preservadas no novo endereço.
 - **Gate:** Browser (comando da tabela; incluir build, lint/types aplicáveis).
-- **Test:** `test('orienta o inicio do produto sem consultar API ou carregar referencia')` em `tests/e2e/reference-routing.spec.ts`.
+- **Test:** `test('abre referencia por Unicode, alias, codificacao e normalizacao apos atualizar')` em `tests/e2e/reference-routing.spec.ts`.
+- **Perfis:** Os dois mantêm a jornada da referência. O oráculo de `/` é próprio de cada perfil: público verifica guia sem API; autenticado verifica sessão/entrada antes do guia. Ambos os testes são preservados nas respectivas fontes.
 
-## T-015 — Verificar o candidato de autenticação
+## T-015 — Verificar a integração da biblioteca de autenticação
 
-- **Status:** todo
+- **Status:** done
 - **Ownership:** `tests/experiments/auth` e testes diretamente relacionados.
-- **What:** Spike descartável Better Auth/Fastify/Postgres/tRPC/proxy/email; registrar ADR com método, biblioteca, provider e limites.
+- **What:** Spike descartável Better Auth 1.7.11/Fastify/Postgres/proxy/email; registrar decisão técnica local, sessões, migrações e limites, separando produção e Railway futuros.
 - **Depends on:** T-003, T-005, T-006
 - **Requirement:** REQ-014
-- **Done when:** Experimento comprova sessão, cookies múltiplos, origem, migration, ativação e recuperação; decisão de produto S0 confirmada antes de T-016.
+- **Done when:** Experimento comprova sessão, cookies múltiplos, origem, migration, ativação e recuperação; decisão local de email/senha, entrada fechada e Mailpit documentada antes de consolidar T-016.
 - **Tests:** integration; pelo menos 6 cenários nomeados, contagem real registrada na execução.
 - **Gate:** Spike (comando da tabela; incluir lint/types aplicáveis).
 - **Test:** `it('comprova integracao auth com Fastify e proxy')` em `tests/experiments/auth/auth-spike.test.ts`.
 
 ## T-016 — Integrar o módulo de identidade
 
-- **Status:** todo
-- **Ownership:** `templates/modules/auth/packages/auth` e testes diretamente relacionados.
-- **What:** Receita do módulo de auth com identidade própria, sessão, provisionamento fechado, recuperação e migrations revisadas.
+- **Status:** done
+- **Ownership:** `templates/modules/auth/files/packages/auth`, integração em `files/apps/backend/src/server`, CLI `files/scripts/auth/invite.mjs`, migration em `files/packages/dbmigrator` e `files/tests/integration/auth.test.ts` (paths `files/` relativos à receita).
+- **What:** Receita fixa com identidade própria, Better Auth 1.7.11, sessão, convite local pelo responsável, recuperação e migrations revisadas. O perfil público permanece sem auth runtime.
 - **Depends on:** T-015
 - **Requirement:** REQ-014, REQ-015, REQ-017, REQ-019
 - **Done when:** Sem cadastro público ou senha padrão; expiração/logout/recuperação revogam sessão; tentativas e replay limitados; controles não dependem de esconder UI.
 - **Tests:** integration; pelo menos 9 cenários nomeados, contagem real registrada na execução.
 - **Gate:** Integration (comando da tabela; incluir lint/types aplicáveis).
-- **Test:** `it('revoga sessao e bloqueia cadastro publico')` em `tests/integration/auth.test.ts`.
+- **Test:** `it('revoga sessao e bloqueia cadastro publico')` em `templates/modules/auth/files/tests/integration/auth.test.ts`.
 
 ## T-017 — Entregar operação persistente por proprietário
 
-- **Status:** todo
-- **Ownership:** `templates/modules/auth/apps/backend/src/modules/example` e testes diretamente relacionados.
-- **What:** Exemplo de criar/listar/editar registro com política explícita de propriedade no backend.
+- **Status:** done
+- **Ownership:** `templates/modules/auth/files/apps/backend/src/modules/records`, tipos/migration `owned_records` na receita e testes diretamente relacionados.
+- **What:** Criar/listar/editar `owned_records` com política explícita de propriedade no backend; manter o exemplo público em tabela separada e somente leitura.
 - **Depends on:** T-016
 - **Requirement:** REQ-016
 - **Done when:** Usuário A mantém registro após reiniciar API; B não lê/edita o registro de A mesmo conhecendo o ID; entrada inválida não grava.
 - **Tests:** integration; pelo menos 6 cenários nomeados, contagem real registrada na execução.
 - **Gate:** Integration (comando da tabela; incluir lint/types aplicáveis).
-- **Test:** `it('isola registros entre dois usuarios')` em `tests/integration/owned-records.test.ts`.
+- **Test:** `it('isola registros entre dois usuarios')` em `templates/modules/auth/files/tests/integration/owned-records.test.ts`.
 
 ## T-018 — Entregar a jornada de acesso e email local
 
-- **Status:** todo
-- **Ownership:** `templates/modules/auth/apps/frontend/src/features/auth` e testes diretamente relacionados.
-- **What:** Composição de entrada, ativação, logout e recuperação; caixa de email local como dependência do perfil.
+- **Status:** done
+- **Ownership:** `templates/modules/auth/files/apps/frontend/src/auth`, páginas `AuthPage.tsx`/`PrivatePage.tsx`, composição `App.tsx`, Compose Mailpit e `files/tests/e2e/auth.spec.ts` (paths `files/` relativos à receita).
+- **What:** Entrada, ativação, logout, recuperação e área privada com design system; Mailpit 1.31.6 em loopback, sem relay ou provedor externo.
 - **Depends on:** T-016
 - **Requirement:** REQ-004, REQ-014
-- **Done when:** Navegador conclui fluxo com mensagem capturada localmente; recuperação responde genericamente inclusive em falha de envio; diagnóstico administrativo distingue falha de aceitação sem expor conta; produção sem provider configurado é recusada.
+- **Done when:** Navegador conclui fluxo com mensagem capturada localmente; recuperação responde genericamente inclusive em falha de envio; diagnóstico administrativo distingue falha de aceitação sem expor conta; qualquer startup auth em produção é recusado neste incremento, até implementar e validar entrega remota.
 - **Tests:** e2e; pelo menos 6 cenários nomeados, contagem real registrada na execução.
 - **Gate:** Browser (comando da tabela; incluir lint/types aplicáveis).
-- **Test:** `test('ativa conta e recupera acesso por email local')` em `tests/e2e/auth.spec.ts`.
+- **Test:** `test('convite real ativa acesso, preserva senha, abre guia e sai por teclado em mobile')` em `templates/modules/auth/files/tests/e2e/auth.spec.ts`.
 
 ## T-019 — Validar os dois projetos gerados
 
-- **Status:** todo
-- **Ownership:** `tests/profiles` e testes diretamente relacionados.
-- **What:** Runner test:profiles gera cada perfil em diretório limpo e executa seus gates com DB descartável.
+- **Status:** done
+- **Ownership:** `scripts/project/test-profiles.mjs`, `scripts/project/auth-recipe.mjs`, composição em `generate.mjs`, testes em `tests/integration/auth-composition.test.ts` e matriz CI.
+- **What:** `test:profiles` materializa a receita em cópias independentes, instala cada lockfile com `--frozen-lockfile` e executa `check:full` com DB descartável. Seleção de auth somente em clone novo antes de `.env`/estado do banco; conflito e interrupção não sobrescrevem produto nem permitem fallback público.
 - **Depends on:** T-011, T-017, T-018
 - **Requirement:** REQ-001, REQ-014, REQ-018, REQ-033
 - **Done when:** Perfil público não inclui auth runtime/schema; autenticado completa persistência e negativas; ambos instalam com lockfile e build sem repo irmão.
 - **Tests:** integration + e2e; pelo menos 4 cenários nomeados, contagem real registrada na execução.
 - **Gate:** Profiles (comando da tabela; incluir lint/types aplicáveis).
-- **Test:** `it('valida os dois perfis em clones independentes')` em `tests/profiles/generation.test.ts`.
+- **Test:** `it('clone de produto autenticado sem estado ignorado preserva código customizado')` em `tests/integration/auth-composition.test.ts`.
+- **Matriz executável:** `scripts/project/test-profiles.mjs` materializa e valida os dois perfis; o teste acima não substitui essa execução.
 
 ## T-020 — Tornar CI um gate de publicação verificável
 
@@ -663,10 +668,15 @@ inventar testes para satisfazer o parser atual.
 - Após implementação, revisor em contexto fresco reconstrói requisitos e provas.
   Falhas controladas em scratch devem ser detectadas pelos gates; sobreviventes
   reabrem trabalho. Nunca usar produção ou stash para esse ensaio.
-- A release só é chamada pronta quando seus gates reais passam. S0, piloto
+- A release só é chamada pronta quando seus gates reais passam. Pilotos
   remoto e humano pendentes permanecem explicitamente pendentes.
 
 ## Validation Log
+
+Os registros abaixo documentam os incrementos anteriores; contagens e limites
+valem para as revisões indicadas em seus relatórios. T-015–T-019 seguem
+`in_progress` até o gate final do incremento auth. Não herdar os resultados
+anteriores para autenticação, Railway ou aceite humano.
 
 - Planejamento anterior: pesquisa e validação documental em [review.md](review.md).
 - T-000–T-010 concluídos no incremento local. Relatório independente e matriz
@@ -721,3 +731,11 @@ inventar testes para satisfazer o parser atual.
 - React Doctor: **100/100**, sem diagnósticos; revisão independente somente leitura
   sem achados concretos. Integração completa não repetida neste ajuste de UI;
   o relatório de 204 testes acima registra o estado anterior ao guia.
+
+## Validation Log — autenticação opcional local (19/10/2026)
+
+- `pnpm test:profiles`: PASS em dois projetos novos com lockfile congelado.
+- Público: 230 testes; autenticado: 254 testes, incluindo 22 E2E.
+- S0, revisão independente, retomada, convite CLI e limites no [relatório](auth-validation.md).
+- Não verificado: Railway, email externo, WSL2, aceite humano e evolução T-030.
+- T-020 continua em progresso: a matriz entra no CI, mas os demais critérios operacionais do plano não são encerrados por testes locais.
