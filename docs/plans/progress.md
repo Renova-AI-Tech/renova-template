@@ -195,3 +195,19 @@ Cada sessão longa acrescenta um bloco no topo. Não apague histórico.
   limites em [railway-validation](../specs/renova-project-template/railway-validation.md).
 - Backup gerenciado/PITR, aceite humano e evolução de produto existente continuam
   separados. Nenhum banco local ou serviço da aplicação Renova existente foi alterado.
+
+## 2026-10-20 — encerramento dos pilotos descartáveis
+
+- Responsável autorizou excluir os dois projetos Railway, o repositório do clone
+  autenticado e sua chave exclusiva de envio, preservando o template e a Renova.
+- Railway aceitou as duas exclusões: quatro serviços offline, sem deployments
+  ativos, e ambas as origens HTTP 404. Remoção definitiva agendada pelo provedor
+  para 22/10/2026, às 01h28–01h29 de Brasília; ainda não observada.
+- Chave `renova-email-piloto` revogada no Resend; `Onboarding` e domínio preservados.
+- Repositório piloto excluído após confirmação de identidade pelo responsável;
+  sucesso na interface e HTTP 404 na API autenticada do GitHub.
+- Revisão independente não encontrou dependências do template nesses recursos.
+  Relatório preserva a prova histórica e identifica as origens como desativadas.
+- `pnpm check:quick` e `git diff --check` passaram; revisão independente aprovada.
+  Nenhum banco local foi modificado.
+  [Registro](../specs/renova-project-template/railway-validation.md).
