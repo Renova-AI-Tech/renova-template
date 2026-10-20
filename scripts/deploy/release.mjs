@@ -32,7 +32,8 @@ async function command(runner, root, program, args, env = process.env) {
     });
     return result.stdout.trim();
   } catch {
-    refuse(`falha em ${program}; saída externa omitida`);
+    const stage = args.slice(0, program === 'railway' && args[0] === 'config' ? 2 : 1).join(' ');
+    refuse(`falha em ${program} ${stage}; saída externa omitida`);
   }
 }
 
@@ -205,6 +206,8 @@ export async function prepareRelease(
     ],
     {
       ...process.env,
+      // railway/iac checks this executable's version during native CLI evaluation.
+      _: 'railway',
       RENOVA_DEPLOY_PROJECT_ID: target.project,
       RENOVA_DEPLOY_ENVIRONMENT_ID: target.environment,
     },

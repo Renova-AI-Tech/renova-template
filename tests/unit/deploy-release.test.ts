@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { applyRelease, parseReleaseArgs, prepareRelease } from '../../scripts/deploy/release.mjs';
 
 const execute = promisify(execFile);
@@ -142,10 +142,47 @@ async function fixture() {
 }
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
 describe('release Railway com plano fixado e CI do SHA exato', () => {
+  it('SDK nativo verifica Railway, mesmo quando o wrapper herda o executável Node em _', async () => {
+    const f = await fixture();
+    const bin = join(f.root, '.renova/bin');
+    await mkdir(bin, { recursive: true });
+    await writeFile(join(bin, 'railway'), "#!/bin/sh\nprintf '%s\\n' 'railway 5.45.10'\n", {
+      mode: 0o700,
+    });
+    const sdk = new URL('../../node_modules/railway/dist/iac/index.js', import.meta.url).href;
+    // Same native-evaluation markers as the installed SDK; only --version uses the stub CLI.
+    const source = `const mod = await import(${JSON.stringify(sdk)}); const partial = mod.partial; const graph = {}; process.stdout.write(JSON.stringify({ partial, project: graph }));`;
+    const evaluate = (env: NodeJS.ProcessEnv) =>
+      execute(
+        process.execPath,
+        ['--experimental-strip-types', '--input-type=module', '-e', source],
+        { env: { ...env, PATH: `${bin}:${env.PATH ?? ''}` } },
+      );
+    vi.stubEnv('_', process.execPath);
+    await expect(evaluate(process.env)).rejects.toMatchObject({
+      stderr: expect.stringContaining('requires Railway CLI 5.42.1 or newer'),
+    });
+    const runner = async (
+      program: string,
+      args: string[],
+      options: { cwd: string; env: NodeJS.ProcessEnv },
+    ) => {
+      if (program === 'railway' && args[0] === 'config' && args[1] === 'plan') {
+        await evaluate(options.env);
+      }
+      return f.options.runner(program, args, options);
+    };
+    await expect(prepareRelease(target, { ...f.options, runner })).resolves.toMatchObject({
+      sha: f.sha,
+    });
+    expect(f.state.planEnvironment._).toBe('railway');
+  });
+
   it('prepara resumo sem payload e publica somente git archive após CI e plano', async () => {
     const f = await fixture();
     await writeFile(join(f.root, '.env'), 'ignored-secret');
