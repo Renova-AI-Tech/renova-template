@@ -13,7 +13,7 @@ RUN node --input-type=module -e 'import {readFileSync,writeFileSync,existsSync} 
     && mkdir -p /runtime/apps/frontend /runtime/packages /runtime/scripts \
     && cp -R apps/frontend/dist /runtime/apps/frontend/dist \
     && ln -s apps/backend/node_modules /runtime/node_modules \
-    && for name in db-types dbmigrator auth; do \
+    && for name in db-types dbmigrator; do \
          if [ -d "packages/$name/dist" ]; then \
            mkdir -p "/runtime/packages/$name"; \
            cp "packages/$name/package.json" "/runtime/packages/$name/package.json"; \

@@ -125,6 +125,13 @@ test('imagem final preserva somente artefatos e dependencias de producao', () =>
     await import('/app/apps/backend/dist/server/app.js');
     await import('/app/packages/dbmigrator/dist/index.js');
     await import('/app/scripts/deploy/predeploy.mjs');
+    if (existsSync('/app/scripts/auth/invite-remote.mjs')) {
+      const { runtimeDependencies } = await import('/app/scripts/auth/invite-remote.mjs');
+      const runtime = await runtimeDependencies();
+      assert.equal(typeof runtime.parseEnv, 'function');
+      assert.equal(typeof runtime.createAuthService, 'function');
+      assert.equal(typeof runtime.createClient, 'function');
+    }
     assert.equal(process.getuid(), 1000);
     const applicationEnv = readFileSync('/proc/1/environ', 'utf8');
     assert.ok(!applicationEnv.includes('MIGRATION_DATABASE_URL='));

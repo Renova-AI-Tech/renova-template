@@ -33,13 +33,9 @@ export function parseRemoteInviteArgs(args) {
   return { projectId, environmentId, serviceId, email, name };
 }
 
-async function runtimeDependencies() {
+export async function runtimeDependencies() {
   const [{ parseEnv }, { createAuthService, reportAuthEvent }, { default: pg }] = await Promise.all(
-    [
-      import('../../apps/backend/dist/env.js'),
-      import('../../packages/auth/dist/index.js'),
-      import('pg'),
-    ],
+    [import('../../apps/backend/dist/env.js'), import('@renova/auth'), import('pg')],
   );
   return {
     parseEnv,
