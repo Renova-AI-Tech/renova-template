@@ -5,8 +5,19 @@ import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parseEnv } from '../../apps/backend/src/env.js';
 import { createApp } from '../../apps/backend/src/server/app.js';
+import { publicProcedure, router } from '../../apps/backend/src/server/trpc.js';
 
+// Static HTTP fixtures have no identity database; application auth has its own integration suite.
+const transportRouter = router({
+  system: router({ health: publicProcedure.query(() => ({ status: 'ok' as const })) }),
+});
+const auth = {
+  AUTH_SECRET: '5e09f1a3c8b647d210a7e4d9c32f68b0a97dc3e124658fb0c7ae93b56df81042',
+  AUTH_EMAIL_FROM: 'access@example.com',
+};
 const production = {
+  ...auth,
+  RESEND_API_KEY: 're_SYNTHETIC_EMAIL_KEY',
   NODE_ENV: 'production',
   DEPLOY_TARGET: 'railway',
   RAILWAY_PROJECT_ID: 'fa03c408-2461-4401-9de8-a25449b629e6',
@@ -38,7 +49,7 @@ describe('production frontend', () => {
     await rm(root, { recursive: true, force: true });
   });
   async function start(source = production) {
-    const app = await createApp(parseEnv(source), { frontendRoot: root });
+    const app = await createApp(parseEnv(source), { frontendRoot: root, router: transportRouter });
     apps.push(app);
     return app;
   }
@@ -145,16 +156,23 @@ describe('production frontend', () => {
   it('nao serve frontend no desenvolvimento e falha sem build em producao', async () => {
     const local = await createApp(
       parseEnv({
+        ...auth,
         NODE_ENV: 'test',
+        SMTP_HOST: '127.0.0.1',
+        SMTP_PORT: '1025',
+        MAILPIT_PORT: '8025',
         DATABASE_URL:
           'postgresql://renova_runtime:synthetic-only-password@127.0.0.1:5432/renova_test',
       }),
-      { frontendRoot: root },
+      { frontendRoot: root, router: transportRouter },
     );
     apps.push(local);
     expect((await local.inject('/')).statusCode).toBe(404);
     await expect(
-      createApp(parseEnv(production), { frontendRoot: join(root, 'missing') }),
+      createApp(parseEnv(production), {
+        frontendRoot: join(root, 'missing'),
+        router: transportRouter,
+      }),
     ).rejects.toThrow();
   });
 

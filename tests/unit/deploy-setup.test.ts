@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -111,6 +111,24 @@ describe('configuração inicial Railway', () => {
         return f.run(args, input);
       }),
     ).rejects.toThrow('Bootstrap');
+    expect(f.calls.some((call) => call.args[0] === 'api')).toBe(false);
+  });
+  it('recusa credenciais com permissões abertas antes de qualquer escrita remota', async () => {
+    const f = await fixture();
+    await setupRailway(target, f.root, f.run);
+    await chmod(join(f.root, '.renova/railway-credentials.json'), 0o644);
+    f.calls.length = 0;
+    await expect(setupRailway(target, f.root, f.run)).rejects.toThrow('Arquivo local inválido');
+    expect(f.calls.every((call) => call.args[0] === 'variable')).toBe(true);
+  });
+  it('recusa falha de autenticação dos papéis antes de publicar variáveis', async () => {
+    const f = await fixture();
+    await expect(
+      setupRailway(target, f.root, (args: string[], input?: string) => {
+        if (input?.includes('PGPASSWORD')) throw new Error('Credencial recusada');
+        return f.run(args, input);
+      }),
+    ).rejects.toThrow('Credencial recusada');
     expect(f.calls.some((call) => call.args[0] === 'api')).toBe(false);
   });
 });
