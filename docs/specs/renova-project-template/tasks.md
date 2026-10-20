@@ -3,7 +3,7 @@
 Spec: [requirements.md](requirements.md). Design: [design.md](design.md).
 Estado do plano: implementação local autorizada em 19/10/2026, começando pela
 base Vite/Fastify/Postgres/UI. A autenticação opcional local está implementada e
-validada localmente em T-015–T-019. Incremento Railway/email autorizado e em validação isolada.
+validada localmente em T-015–T-019. Incremento Railway/email validado em dois pilotos isolados; aceite humano continua separado.
 
 ## Execution Protocol
 
@@ -43,8 +43,8 @@ financeiro retira apenas os seus testes; gates e testes de proteção permanecem
 | UI e acesso | e2e | Navegador real, teclado, mobile e falhas | tests/e2e | pnpm test:e2e |
 | Geração | integration + e2e | Ambos os perfis, lockfile, independência e ausência de auth no público | tests/integration/auth-composition.test.ts + scripts/project/test-profiles.mjs | pnpm test:profiles |
 | Imagens | container + e2e | Build, proxy, startup, segredo sentinela e schema | tests/integration, tests/e2e | pnpm test:containers |
-| Deploy driver | integration com fake de transporte | Autoridade, falha parcial e retry; não prova provedor | tests/integration | test:integration filtrado |
-| Railway | provider + e2e | Serviços reais isolados e jornada nos dois perfis | tests/e2e/railway-pilot.spec.ts | Gate Remote |
+| Deploy driver | lógica com fake de transporte e Git real | Autoridade, plano, CI e falha parcial; não prova provedor | tests/unit/deploy-release.test.ts | pnpm exec vitest run --config vitest.loop.config.ts tests/unit/deploy-release.test.ts |
+| Railway | provider + e2e | Serviços reais isolados e jornada nos dois perfis | scripts/deploy/verify.mjs + railway-validation.md | Gate Remote |
 | Documentação | documental/jornada | Links e execução dos comandos reais | docs e testes existentes | Gate Docs |
 | Experiência humana | aceite humano | Participantes reais e intervenções registradas | relatório de aceite | Gate Acceptance |
 
@@ -63,9 +63,9 @@ na tarefa que primeiro o utiliza. Não simular sua existência durante esta roda
 | Spike | Runner Vitest do experimento T-015 + relatório da prova e decisão | Criado em T-015, não implica adoção automática |
 | Profiles | `pnpm test:profiles && pnpm check:full` | Implementado em T-019; dois perfis validados localmente |
 | CI | Gates locais + execução Blacksmith/GitHub no SHA autorizado, com cache frio e falha/cancelamento/skip | Config T-020; execução remota exige App habilitado no repo e autorização |
-| Containers | `pnpm test:containers && pnpm check:full` | Futuro T-021; Docker isolado |
-| DeployDriver | `pnpm test:integration -- deploy-driver && pnpm check:quick` | Futuro T-025; fake só comprova lógica |
-| Remote | `pnpm deploy:prepare`, apply autorizado e `pnpm deploy:verify`; Playwright no alvo explícito | Futuros T-024/T-025/T-026 |
+| Containers | `pnpm test:containers && pnpm check:full` | Implementado; Docker isolado |
+| DeployDriver | `pnpm exec vitest run --config vitest.loop.config.ts tests/unit/deploy-release.test.ts` e `pnpm check:quick` | Implementado; fake só comprova lógica |
+| Remote | `pnpm deploy:prepare`, apply autorizado e `pnpm deploy:verify`; Playwright no alvo explícito | Implementado; evidência por destino no relatório |
 | Docs | `pnpm harness:check`, revisão de links/comandos e jornada já implementada | Sem testes artificiais que repitam texto |
 | Acceptance | Gates do pacote + relatório humano + verificação independente/sensor em scratch | Exige participantes reais; não substituível por agente |
 
@@ -465,7 +465,7 @@ inventar testes para satisfazer o parser atual.
 
 ## T-021 — Servir frontend e API na mesma imagem
 
-- **Status:** in_progress
+- **Status:** done
 - **Ownership:** `apps/backend/src/server/frontend.ts` e testes diretamente relacionados.
 - **What:** Fastify serve build Vite, /api, fallback SPA e regras de cache; criar test:containers.
 - **Depends on:** T-019
@@ -477,7 +477,7 @@ inventar testes para satisfazer o parser atual.
 
 ## T-022 — Empacotar backend e declarar serviços
 
-- **Status:** in_progress
+- **Status:** done
 - **Ownership:** `Dockerfile` e testes diretamente relacionados.
 - **What:** Imagem única Vite/Fastify com runtime mínimo e IaC Railway para app, com banco privado separado.
 - **Depends on:** T-005, T-016, T-021
@@ -489,7 +489,7 @@ inventar testes para satisfazer o parser atual.
 
 ## T-023 — Conectar migration e readiness à publicação
 
-- **Status:** in_progress
+- **Status:** done
 - **Ownership:** `scripts/deploy/predeploy.mjs` e testes diretamente relacionados.
 - **What:** Etapa única de migration pré-deploy e readiness por versão esperada; contrato de rollback de imagem separado dos dados.
 - **Depends on:** T-005, T-022
@@ -497,11 +497,11 @@ inventar testes para satisfazer o parser atual.
 - **Done when:** Migration falha impede novo release; DB indisponível torna ready 503; readiness exige identidade e histórico exatos, inclusive no retorno a uma imagem anterior; nenhum rollback automático de DB.
 - **Tests:** integration + container; pelo menos 5 cenários nomeados, contagem real registrada na execução.
 - **Gate:** Containers (comando da tabela; incluir lint/types aplicáveis).
-- **Test:** `it('interrompe publicacao quando migration falha')` em `tests/integration/predeploy.test.ts`.
+- **Test:** `it('falha faz rollback transacional e imagem anterior só fica pronta com o mesmo histórico')` em `tests/integration/railway-database.test.ts`.
 
 ## T-024 — Gerar plano de instalação Railway
 
-- **Status:** in_progress
+- **Status:** done
 - **Ownership:** `scripts/deploy/release.mjs` e testes diretamente relacionados.
 - **What:** Preflight de acessos e destino explícitos, inventário somente leitura, plano sanitizado com hash/validade, SHA e hash do contexto ou digest da imagem a publicar.
 - **Depends on:** T-020, T-022, T-023
@@ -509,11 +509,11 @@ inventar testes para satisfazer o parser atual.
 - **Done when:** Prepare não muta; plano descreve recursos/custo sem estimativa inventada; destino ausente é erro; DB local não é fonte de carga.
 - **Tests:** unit; pelo menos 6 cenários nomeados, contagem real registrada na execução.
 - **Gate:** Quick (comando da tabela; incluir lint/types aplicáveis).
-- **Test:** `it('prepara plano railway sem mutacoes')` em `tests/unit/deploy-plan.test.ts`.
+- **Test:** `it('prepara resumo sem payload e publica somente git archive após CI e plano')` em `tests/unit/deploy-release.test.ts`.
 
 ## T-025 — Aplicar plano remoto com retomada
 
-- **Status:** in_progress
+- **Status:** done
 - **Ownership:** `scripts/deploy/release.mjs` e testes diretamente relacionados.
 - **What:** Driver Railway com autorização do plano atual, revalidação, IDs persistidos e tratamento de resultado desconhecido.
 - **Depends on:** T-024
@@ -521,11 +521,11 @@ inventar testes para satisfazer o parser atual.
 - **Done when:** Sem aprovação não há chamada de escrita; plano/commit/artefato alterado ou expirado falha; publicação exige checks obrigatórios verdes do SHA fixado antes da chamada; WIP não é publicado; retry consulta antes de criar; falha não apaga volume.
 - **Tests:** integration; pelo menos 9 cenários nomeados, contagem real registrada na execução.
 - **Gate:** DeployDriver (comando da tabela; incluir lint/types aplicáveis).
-- **Test:** `it('recusa plano sem aceite e retoma sem duplicar recurso')` em `tests/integration/deploy-driver.test.ts`.
+- **Test:** `it('falha no apply impede archive/upload e sanitiza o erro sem remover recursos')` em `tests/unit/deploy-release.test.ts`, além das recusas de alteração/expiração/CI. Execução real no relatório do piloto; o driver não repete automaticamente upload desconhecido.
 
 ## T-026 — Verificar pilotos remotos e recuperação
 
-- **Status:** in_progress
+- **Status:** done
 - **Ownership:** `scripts/deploy/verify.mjs` e testes diretamente relacionados.
 - **What:** Verificador e relatório por camada; pilotos isolados dos dois perfis somente com autorização remota e complemento do guia Railway com evidência real.
 - **Depends on:** T-025
@@ -533,11 +533,13 @@ inventar testes para satisfazer o parser atual.
 - **Done when:** CI do SHA, serviços, proxy, TLS e jornadas passam; backup restaura em destino descartável; relatório não confunde fake com provedor.
 - **Tests:** provider + e2e; pelo menos 4 cenários nomeados, contagem real registrada na execução.
 - **Gate:** Remote (comando da tabela; incluir lint/types aplicáveis).
-- **Test:** `test('verifica perfil publicado e sua jornada real')` em `tests/e2e/railway-pilot.spec.ts`.
+- **Test:** `test('recuperacao por e-mail troca senha, revoga outra sessao e impede reutilizacao do link')` em `templates/modules/auth/files/tests/e2e/auth.spec.ts`; cobre a jornada local. Prova externa separada: `scripts/deploy/verify.mjs` e navegador nos dois pilotos, em [railway-validation.md](railway-validation.md). O CI não acessa provedores reais.
+
+- **Evidence:** provider em `docs/specs/renova-project-template/railway-validation.md`
 
 ## T-027 — Publicar as instruções que acompanham o clone
 
-- **Status:** in_progress
+- **Status:** done
 - **Ownership:** `docs/process` e testes diretamente relacionados.
 - **What:** Guia curto humano/IA, feature map, comandos, limites, revisão e ações locais/remotas; sem skill pessoal obrigatória.
 - **Depends on:** T-014, T-019
@@ -545,7 +547,9 @@ inventar testes para satisfazer o parser atual.
 - **Done when:** Comandos locais documentados existem; links passam; sessão sem histórico conclui a jornada local; comandos remotos só entram quando implementados e são qualificados como não verificados até T-026.
 - **Tests:** documental + jornada; pelo menos 2 cenários nomeados, contagem real registrada na execução.
 - **Gate:** Docs (comando da tabela; incluir lint/types aplicáveis).
-- **Test:** `it('valida os dois perfis em clones independentes')` em `tests/profiles/generation.test.ts`.
+- **Test:** `it('gera perfil e preserva customizacoes em conflito')` em `tests/integration/profile-generation.test.ts`; complementado por `pnpm test:profiles` e `pnpm harness:check`.
+
+- **Evidence:** documental em `docs/specs/renova-project-template/railway-validation.md`
 
 ## T-028 — Definir atualização revisável da base
 
@@ -569,7 +573,7 @@ inventar testes para satisfazer o parser atual.
 - **Done when:** Registrar tempo/intervenções sem inventar participantes; ambos criam projeto e primeira alteração com docs; falhas controladas são rejeitadas em scratch.
 - **Tests:** aceite humano + discriminação; pelo menos 2 cenários nomeados, contagem real registrada na execução.
 - **Gate:** Acceptance (comando da tabela; incluir lint/types aplicáveis).
-- **Test:** `it('valida os dois perfis em clones independentes')` em `tests/profiles/generation.test.ts`.
+- **Test:** `it('gera perfil e preserva customizacoes em conflito')` em `tests/integration/profile-generation.test.ts`; complementado por `pnpm test:profiles` e `pnpm harness:check`.
 
 ## T-030 — Planejar e adicionar auth a projeto existente
 
@@ -674,8 +678,7 @@ inventar testes para satisfazer o parser atual.
 ## Validation Log
 
 Os registros abaixo documentam os incrementos anteriores; contagens e limites
-valem para as revisões indicadas em seus relatórios. T-015–T-019 seguem
-`in_progress` até o gate final do incremento auth. Não herdar os resultados
+valem para as revisões indicadas em seus relatórios. T-015–T-019 foram concluídas no incremento auth registrado abaixo. Não herdar os resultados
 anteriores para autenticação, Railway ou aceite humano.
 
 - Planejamento anterior: pesquisa e validação documental em [review.md](review.md).
@@ -739,3 +742,11 @@ anteriores para autenticação, Railway ou aceite humano.
 - S0, revisão independente, retomada, convite CLI e limites no [relatório](auth-validation.md).
 - Não verificado: Railway, email externo, WSL2, aceite humano e evolução T-030.
 - T-020 continua em progresso: a matriz entra no CI, mas os demais critérios operacionais do plano não são encerrados por testes locais.
+
+## Validation Log — Railway e email (20/10/2026)
+
+- T-021–T-027 concluídos no recorte técnico: dois destinos, CI, imagem, migrations,
+  identidade, navegador, email real e restauração lógica. [Relatório](railway-validation.md).
+- T-020: gate de SHA exato e CI Blacksmith comprovados. Permanece parcial quanto
+  a consumo/custo medido e ensaio controlado de cache frio; não há promessa de economia.
+- T-028–T-030 permanecem futuras; ninguém foi contado como participante de aceite humano.

@@ -11,7 +11,7 @@ ficam nos planos locais; ferramenta externa de tarefas é opcional.
 - Perfil público somente leitura com três exemplos sintéticos em `/referência`
   (alias `/referencia`). `/` começa com um guia substituível pelo produto. Sem auth no runtime público.
 - Perfil opcional com login para clones novos: contas liberadas pelo responsável,
-  ativação/recuperação por email local, sessão limitada e registros por proprietário.
+  ativação/recuperação por Mailpit local ou Resend no Railway, sessão limitada e registros por proprietário.
   Veja o [guia de acesso](../../process/authentication.md) e a
   [validação dos dois perfis](../../specs/renova-project-template/auth-validation.md).
 - Configurador `pnpm run setup`: nome + perfil + confirmação ou JSON, plano sem escrita e
@@ -28,8 +28,8 @@ ficam nos planos locais; ferramenta externa de tarefas é opcional.
   na [validação independente](../../specs/renova-project-template/local-validation.md):
   141 testes e 3/3 falhas controladas detectadas. O incremento posterior de
   [onboarding e referência](../../specs/renova-project-template/onboarding-validation.md)
-  passou em 204 testes e 3/3 falhas controladas detectadas. Publicação Railway
-  e adição de auth a produtos já personalizados continuam etapas futuras.
+  passou em 204 testes e 3/3 falhas controladas detectadas. Adição de auth a produtos
+  já personalizados continua uma etapa futura.
 - [Simplificação validada localmente](../../specs/renova-project-template/simplification-validation.md):
   configurador só pede nome, readiness não exige tabela de exemplo, legado retirado.
 - Workflow Blacksmith preparado, E2E bloqueante e agregador que recusa skip/falha.
@@ -46,15 +46,16 @@ ficam nos planos locais; ferramenta externa de tarefas é opcional.
   CI usa Blacksmith; no perfil com login, o responsável libera as contas, sem cadastro público.
   Plano aprovado e implementação da base local autorizada na sequência.
 
-## Incremento remoto em validação
+## Publicação Railway validada em pilotos
 
-Container único, IaC Railway e transporte Resend implementados na branch de trabalho.
-Piloto separado criado; liberação depende das [evidências remotas](../../specs/renova-project-template/railway-validation.md),
-incluindo domínio/remetente verificados e convite recebido.
+Container único, Postgres privado, plano IaC nativo e publicação condicionada ao CI
+do commit. Dois pilotos independentes passaram em saúde, navegador e API; o perfil
+com login recebeu convite e recuperação reais. Restauração lógica também ensaiada.
+Veja as [evidências e limites](../../specs/renova-project-template/railway-validation.md).
 
 ## Em aberto (projeto real)
 
 - [ ] Personalizar nome/slug no setup e responsáveis de revisão, quando aplicável.
 - [ ] Validar onboarding com pessoas técnicas e não técnicas; ensaio de agente não substitui aceite humano.
 - [ ] Ativar CODEOWNERS com usuários reais se o projeto quiser revisão por responsáveis.
-- [ ] Definir entrega remota de email e destino/acesso/custo Railway na etapa de publicação.
+- [ ] Definir destino/acesso/custo e política de backup de cada novo projeto antes de dados reais.

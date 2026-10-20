@@ -2,7 +2,7 @@
 
 - **Origem:** pedido do usuário registrado em [context.md](context.md); sem item externo obrigatório.
 - **Pasta:** `docs/specs/renova-project-template/`.
-- **Status:** plano aprovado; base local, configurador/diagnóstico e referência validados. Autenticação opcional local implementada, com T-015–T-019 validados localmente; Railway e T-030 permanecem futuros.
+- **Status:** base local, configurador/diagnóstico, referência e autenticação opcional local implementados e validados nos respectivos incrementos. Docker, publicação Railway e transporte Resend implementados; pilotos técnicos validados, incluindo convite e recuperação recebidos. T-030 permanece futuro.
 - **Contexto:** [decisões e autorização](context.md).
 - **Fontes:** [pesquisa de mercado](research.md).
 
@@ -33,7 +33,7 @@ uma base independente, simples de iniciar, com escolhas pequenas e verificadas.
 | Copiar domínio, dados, credenciais e migrations BPO/CRM/Consulting | Projetos independentes |
 | Remover auth automaticamente ou sincronizar código customizado à força | Pode expor/apagar dados e destruir trabalho |
 | Garantia de segurança de futuras features ou certificação ASVS | A base oferece controles delimitados, não uma auditoria universal |
-| Deploy e configuração de provedores nesta rodada | O incremento auth é local; Railway e email externo exigem etapa própria |
+| Migração de infraestrutura existente e múltiplos provedores de deploy/email | A publicação implementada atende projetos novos no Railway, com Resend somente no perfil autenticado |
 
 ## Assumptions & Open Questions
 
@@ -42,23 +42,26 @@ uma base independente, simples de iniciar, com escolhas pequenas e verificadas.
 | Independência e UI | Repositório, banco, sessões e segredos próprios; UI incorporada | Direção explícita do usuário | Sim |
 | Opções iniciais | Dois perfis, sem login/com login; capacidades depois | Resposta explícita nesta sessão | Sim |
 | Entrada de usuários | O responsável libera as contas; cadastro público fechado | Resposta explícita nesta sessão | Sim |
-| CI | GitHub Actions em runners Blacksmith | Pedido explícito nesta sessão | Sim; habilitação do App em cada repo ainda não verificada |
+| CI | GitHub Actions em runners Blacksmith | Pedido explícito nesta sessão | Sim; CI executado nos dois repositórios do ensaio; novos clones precisam habilitar o App |
 | Stack mínima | Vite/React, Fastify/tRPC, Kysely/Postgres e TypeScript; Node 24/pnpm fixados | Reuso da base Renova; evita escolhas técnicas iniciais | Implementada na base local |
-| Destino inicial | Local; Railway continua etapa futura | Reduz acesso/custo inicial | Implementado; publicação ainda indisponível |
-| Sem login | Exemplo público somente leitura; sem dependências, tabelas ou páginas de auth | Evita ensinar CRUD aberto que seria publicado por acidente | Implementado; comportamento remoto ainda depende do piloto |
+| Destino inicial | Local; publicação Railway em etapa separada, com um app e Postgres privado | Reduz acesso/custo inicial e mantém recursos próprios por projeto | Setup e publicação implementados; evidência remota em [railway-validation.md](railway-validation.md) |
+| Sem login | Exemplo público somente leitura; sem dependências, tabelas ou páginas de auth | Evita ensinar CRUD aberto que seria publicado por acidente | Implementado e validado no piloto público |
 | Método de identidade local | Email/senha; responsável libera a conta por CLI, pessoa define senha por link | Funciona sem SSO e mantém cadastro público fechado | Implementado e validado no incremento local autorizado |
 | Biblioteca de auth | Better Auth 1.7.11; uma implementação suportada | Integração Fastify/Postgres e sessões próprias por projeto | Adotada no incremento local; decisão em [auth-spike.md](auth-spike.md) |
-| Email | Mailpit 1.31.6 isolado em loopback, sem relay; produção auth recusada | Uso local sem credenciais externas nem envio real | Implementado localmente; provedor remoto ainda pendente |
+| Email | Mailpit 1.31.6 isolado em loopback no local; Resend HTTPS no Railway | Uso local sem credenciais externas; remetente e chave próprios na produção | Transportes implementados; convite e recuperação recebidos no piloto |
 | Limites da API | Valores explícitos do design, revisáveis por política e testes | Limites observáveis, não números atribuídos à OWASP | Implementados; verificação por requisito e perfil |
 | Plataformas locais | macOS, Linux e Windows por WSL2, com Node/pnpm e Docker disponíveis | Comportamento verificável sem prometer suporte nativo Windows | Proposta |
 | Gestão de tarefas | Pedido/spec local; ferramenta e ID externos opcionais, inclusive em PRs | Cada pessoa pode usar o template sem outra conta ou integração | Sim; remoção autorizada para este repo e seus clones |
-| Governança e custo | Responsável, workspace, budget e disponibilidade de checks definidos antes de publicar | Não inferir destino corporativo nem gasto autorizado | Pendente operacional; bloqueia apenas etapa remota |
+| Governança e custo | Responsável, workspace, budget e disponibilidade de checks definidos antes de publicar | Não inferir destino corporativo nem gasto autorizado | Verificar para cada instalação; autorização dos pilotos não autoriza outros projetos |
 | Atualização | Origem/versionamento e PRs revisados; sem atualização automática de código do produto | Preserva independência e WIP | Proposta |
 
 A implementação local usa email/senha e Mailpit; não oferece escolha de provedor
-a quem inicia o projeto. Destino, acessos, custos e entrega de email em produção
-continuam pendentes da etapa remota. O gate final deste incremento não equivale
-a aceite humano ou aprovação de publicação no Railway.
+a quem inicia o projeto. A publicação Railway usa `deploy:setup` e `deploy:prepare`
+com IDs explícitos de projeto, ambiente e serviço, `deploy:apply` com confirmação
+do projeto do plano e `deploy:verify` com a origem HTTPS. Setup também exige o ID
+do Postgres. A integração Resend e a jornada
+autenticada foram comprovadas no piloto isolado. Gates locais e CI não equivalem
+a aceite humano nem autorizam publicação em outro destino.
 
 ## User Stories
 
@@ -116,7 +119,7 @@ Teste independente: suíte negativa com entradas, alvos e configurações proibi
 
 1. IF entrada, conteúdo, tamanho ou frequência excede o contrato da API THEN ela SHALL rejeitar a chamada antes de executar o caso de uso, conforme limites e respostas definidos no design. (REQ-019)
 2. WHEN ocorre erro na aplicação THEN a resposta e os logs SHALL excluir senha, cookie, token, corpo sensível, string de conexão e stack pública, preservando identificador de correlação. (REQ-020)
-3. IF produção contém segredo ausente/default, origem curinga, cookie inseguro, fixture privada ou módulo inconsistente THEN o startup e o preflight SHALL recusar a configuração; enquanto entrega remota de email não estiver implementada e validada, o perfil autenticado SHALL recusar qualquer startup em produção. (REQ-021)
+3. IF produção contém segredo ausente/default, origem curinga, cookie inseguro, fixture privada ou módulo inconsistente THEN o startup e o preflight SHALL recusar a configuração; no perfil autenticado Railway, a configuração SHALL exigir chave Resend, remetente válido e origem HTTPS canônica. (REQ-021)
 4. WHEN migrations executam THEN o runner SHALL serializar aplicação e preservar histórico aplicado, sem reset, rollback destrutivo ou alteração silenciosa de migration existente. (REQ-022)
 5. IF teste ou reset recebe alvo que não é banco descartável explicitamente permitido THEN o comando SHALL encerrar antes de conectar para escrita. (REQ-023)
 6. WHEN um pacote, bundle, imagem, relatório ou arquivo versionado é produzido THEN o gate de entrega SHALL detectar e rejeitar os segredos sintéticos usados como sentinelas de vazamento. (REQ-024)
@@ -220,13 +223,13 @@ evidência ficam nas tarefas e nos relatórios de validação.
 | REQ-018 | T-011, T-019 | Perfil público sem auth em `tests/integration/public-profile.test.ts`; composição/ambientes em `tests/integration/auth-composition.test.ts` e runner dos perfis |
 | REQ-019 | T-003, T-016 | Limites/paginação/abuso em `tests/integration/security.test.ts` |
 | REQ-020 | T-003, T-014 | Redação de sentinelas em `tests/integration/security.test.ts` |
-| REQ-021 | T-002, T-022 | Config insegura bloqueada em `tests/integration/backend-bootstrap.test.ts`; container futuro |
-| REQ-022 | T-005, T-023 | Corrida/checksum/falha de migration em `tests/integration/migrations.test.ts` |
+| REQ-021 | T-002, T-022 | Config insegura bloqueada em `tests/integration/backend-bootstrap.test.ts` e na versão do perfil autenticado; runtime em `tests/containers/runtime.test.mjs` |
+| REQ-022 | T-005, T-023 | Corrida/checksum/falha de migration em `tests/integration/migrations.test.ts` e identidade/permissões remotas em `tests/integration/railway-database.test.ts` |
 | REQ-023 | T-004 | Alvo indevido recusado antes da escrita em `tests/integration/local-db.test.ts` |
 | REQ-024 | T-020, T-021 | Sentinelas não chegam ao bundle/imagem/artefatos |
-| REQ-025 | T-024 | Prepare sem escrita remota em `tests/unit/deploy-plan.test.ts` |
-| REQ-026 | T-025 | Plano alterado/sem aceite recusado em `tests/integration/deploy-driver.test.ts` |
-| REQ-027 | T-021, T-022 | Proxy/cookies/SPA em `tests/e2e/container.spec.ts` |
+| REQ-025 | T-024 | Prepare sem escrita remota em `tests/unit/deploy-release.test.ts` |
+| REQ-026 | T-025 | Plano alterado, destino divergente, WIP e CI inválido recusados em `tests/unit/deploy-release.test.ts`; setup em `tests/unit/deploy-setup.test.ts` |
+| REQ-027 | T-021, T-022 | Mesma origem, cookies e SPA em `tests/containers/runtime.test.mjs`; rede privada no piloto remoto |
 | REQ-028 | T-005, T-023 | Banco indisponível e migration falha no smoke |
 | REQ-029 | T-026 | Relatório separado de publicação e ensaio de recuperação |
 | REQ-030 | T-024, T-026 | Publicação não modifica nem copia banco local |
@@ -249,16 +252,18 @@ validada em [local-validation.md](local-validation.md); T-011–T-014 e T-031 em
 [onboarding-validation.md](onboarding-validation.md). A tabela acima mantém
 também contratos de etapas futuras. Autenticação local e geração dos perfis estão
 implementadas e validadas em [auth-validation.md](auth-validation.md); não herdam o resultado dos
-incrementos anteriores. CI remoto, containers e Railway exigem suas evidências
-próprias. Estado por tarefa em [tasks.md](tasks.md).
+incrementos anteriores. Docker, CI e publicação Railway estão implementados; seus
+resultados e pendências de validação remota ficam em
+[railway-validation.md](railway-validation.md). Estado por tarefa em [tasks.md](tasks.md).
 
 | Escopo verificado | Estado |
 | --- | --- |
 | REQ-007, REQ-009, REQ-010, REQ-012, REQ-013, REQ-023, REQ-032, REQ-040 | Verificado no incremento local, com assertions no relatório |
-| REQ-001–003, REQ-017–022, REQ-024, REQ-028, REQ-031, REQ-037, REQ-039 | Evidência parcial local; geração, auth, containers ou provedor ainda necessários conforme cada requisito |
+| REQ-001–003, REQ-017–022, REQ-024, REQ-028, REQ-031, REQ-037, REQ-039 | Evidências distribuídas entre os incrementos local, auth e Railway; consultar os relatórios para limites por ambiente |
 | REQ-004–006, REQ-008, REQ-041–043 | Verificados no escopo public/local em onboarding-validation; operações remotas e auth continuam nas etapas próprias |
 | REQ-014–016, REQ-018, REQ-033 no recorte local | Implementados e validados em T-015–T-019; evidências próprias em [auth-validation.md](auth-validation.md) |
-| Demais requisitos | Etapas futuras; sem alegação de verificação |
+| REQ-025–030 e REQ-033 no recorte remoto | Implementação e pilotos remotos validados no recorte do relatório Railway, com limites de backup gerenciado e aceite humano |
+| Demais requisitos | Consultar tarefas e evidências próprias; T-030 e aceite humano não são concluídos pela implementação Railway |
 
 ## Success Criteria
 

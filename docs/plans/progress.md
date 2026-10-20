@@ -178,3 +178,20 @@ Cada sessão longa acrescenta um bloco no topo. Não apague histórico.
   papéis comprovados pela rede privada. Nenhuma alteração no projeto Renova existente.
 - Resend/DNS e destinatário real aguardam definição; sem prova de entrega externa,
   sem merge/liberação. [Evidência por camada](../specs/renova-project-template/railway-validation.md).
+
+## 2026-10-20 — pilotos Railway e email comprovados
+
+- Dois projetos independentes no Railway: público e autenticado, com Postgres próprio.
+- CI Blacksmith passou no template `775a4ae` e no clone autenticado `cd9a097`.
+  Saúde/readiness, UI pública, IP e restauração lógica do banco passaram.
+- Resend correto confirmado na equipe renovagp; chave de envio restrita configurada
+  somente no piloto autorizado, sem alterar DNS ou envios existentes.
+- Convite e recuperação recebidos na caixa de entrada; ativação, login, persistência,
+  logout, troca de senha, revogação e uso único passaram na API/UI remotas.
+- Ensaio encontrou dois defeitos reais: fonte inline bloqueada pela CSP e cópia do
+  pacote auth sem dependências no comando remoto. Ambos corrigidos com regressões;
+  política de segurança preservada e nova execução aprovada.
+- Revisão fresca confirmou a causa do import e a correção. Relato, comandos e
+  limites em [railway-validation](../specs/renova-project-template/railway-validation.md).
+- Backup gerenciado/PITR, aceite humano e evolução de produto existente continuam
+  separados. Nenhum banco local ou serviço da aplicação Renova existente foi alterado.

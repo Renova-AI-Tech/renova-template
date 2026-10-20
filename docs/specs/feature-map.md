@@ -13,7 +13,7 @@ abaixo; sua referência continua pública e sintética.
 | --- | --- | --- | --- | --- |
 | Começar o produto | `/` | `product-home` | Guia de três passos, link para referência e ajuda acessível por teclado, sem API ou chunk da galeria | Substituir o guia em HomePage.tsx pelo produto |
 | Abrir a referência | `/referência` ou `/referencia` diretamente e após refresh | logo Renova Consulting Group | Mesma galeria, logo local oficial, Unicode normalizado | Caminho codificado também funciona |
-| Rota inexistente | `/pagina-inexistente` | Página não encontrada | 404 visual com links para produto e referência | Status HTTP de publicação depende da futura configuração Railway |
+| Rota inexistente | `/pagina-inexistente` | Página não encontrada | 404 visual com links para produto e referência | No Railway, rota sem extensão usa fallback SPA com HTTP 200; API e assets inexistentes retornam HTTP 404 |
 | Consultar exemplos | `/referência` → Visão geral | `api-status`, `public-record` | API conectada e 3 registros sintéticos do DB real | Não confundir loading com lista vazia |
 | Recuperar falha | Visão geral → erro → Tentar novamente | `records-error`, botão Tentar novamente | Alerta some e dados reaparecem após conexão voltar | Interceptação do E2E prova estado de UI; indisponibilidade do DB tem integração própria |
 | Lista vazia | Visão geral sem resultados | `records-empty` | Mensagem sem erro nem dados inventados | Cenário de UI simulado explicitamente |
@@ -26,6 +26,9 @@ abaixo; sua referência continua pública e sintética.
 
 Conta liberada pelo responsável, sem cadastro público. Os testes usam Postgres e
 caixa de email descartáveis. A caixa local captura mensagens, sem entrega externa.
+No Railway, transporte Resend e jornada foram ensaiados em piloto isolado. Consulte
+a evidência própria em
+[railway-validation.md](renova-project-template/railway-validation.md).
 
 | Jornada | Como chegar | Oráculo |
 | --- | --- | --- |

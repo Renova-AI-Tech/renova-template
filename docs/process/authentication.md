@@ -72,10 +72,11 @@ não apague `.env`, `.renova` ou volumes para contornar conflitos.
 O perfil autenticado exige configuração explícita de produção: destino Railway,
 origem HTTPS, credenciais próprias e Resend. Não possui cadastro público nem
 painel de usuários. A operação remota de convite é reservada ao responsável e
-só deve ser liberada após validar entrega e ativação no piloto.
+exige validar entrega e ativação em cada nova instalação.
 
 ## Publicação e email externo
 
 O transporte de produção usa Resend HTTPS; o uso local permanece no Mailpit.
 Siga [o guia Railway](railway.md) para destino, chave restrita e convite remoto.
-A existência da implementação não substitui a validação de entrega do piloto.
+A [validação dos pilotos](../specs/renova-project-template/railway-validation.md) inclui
+convite, recuperação recebida e revogação de sessão. Repita a prova no novo destino.
