@@ -164,6 +164,56 @@ describe('identidade opcional com Postgres real', () => {
     expect(String(login.headers['set-cookie'])).toContain('SameSite=Lax');
     await expect(auth.invite('pending@example.test', 'Pendente')).rejects.toThrow('Conta já ativa');
   });
+  it('em produção mantém sessão e prova CSRF Secure sem domínio amplo', async () => {
+    await activate('secure-cookie@example.test');
+    // The test retains its disposable DB; only the HTTP/cookie policy changes.
+    const production = createAuthService(
+      {
+        ...settings,
+        NODE_ENV: 'production',
+        FRONTEND_URL: 'https://app.example.com',
+        RESEND_API_KEY: 're_SYNTHETIC_NOT_SENT',
+      },
+      { sendMail: async () => {} },
+    );
+    try {
+      const response = await production.handle(
+        new Request('https://app.example.com/api/auth/sign-in/email', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', origin: 'https://app.example.com' },
+          body: JSON.stringify({ email: 'secure-cookie@example.test', password }),
+        }),
+        '192.0.2.30',
+      );
+      expect(response.status).toBe(200);
+      const session = response.headers
+        .getSetCookie()
+        .find((value) => value.includes('.session_token='));
+      expect(session).toMatch(/^__Secure-renova-/);
+      expect(session).toMatch(/; Secure/i);
+      expect(session).toMatch(/; HttpOnly/i);
+      expect(session).toMatch(/; SameSite=Lax/i);
+      expect(session).not.toMatch(/; Domain=/i);
+      const cookieHeader = session?.split(';')[0];
+      if (!cookieHeader) throw new Error('Expected a secure session cookie.');
+      const proof = production.issueCsrf(cookieHeader);
+      expect(proof.cookie).toMatch(/; Secure/i);
+      expect(
+        production.verifyCsrf(
+          new Headers({ cookie: `${cookieHeader}; ${proof.cookie.split(';')[0]}` }),
+          proof.token,
+        ),
+      ).toBe(true);
+      expect(
+        production.verifyCsrf(
+          new Headers({ cookie: proof.cookie.split(';')[0] ?? '' }),
+          proof.token,
+        ),
+      ).toBe(false);
+    } finally {
+      await production.close();
+    }
+  });
   it('recusa email acima de 254 caracteres antes de processar autenticacao ou convite', async () => {
     const boundary = `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(61)}`;
     expect(boundary).toHaveLength(254);

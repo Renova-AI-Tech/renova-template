@@ -2,17 +2,16 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { betterAuth } from 'better-auth';
 import { Kysely, PostgresDialect } from 'kysely';
-import nodemailer from 'nodemailer';
 import pg from 'pg';
+import { createMailTransport, type AuthMail, type MailSettings } from './mail.js';
 
-export interface AuthSettings {
+export type { AuthMail } from './mail.js';
+
+export interface AuthSettings extends MailSettings {
   NODE_ENV: 'development' | 'test' | 'production';
   DATABASE_URL: string;
   FRONTEND_URL: string;
   AUTH_SECRET: string;
-  SMTP_HOST: string;
-  SMTP_PORT: number;
-  AUTH_EMAIL_FROM: string;
 }
 export interface AuthUser {
   id: string;
@@ -23,14 +22,13 @@ export interface Identity {
   user: AuthUser;
   session: { expiresAt: Date };
 }
-export interface AuthMail {
-  to: string;
-  subject: string;
-  text: string;
-}
+export type AuthEvent = 'email_accepted' | 'email_failed' | 'auth_failed';
 export interface AuthOptions {
   sendMail?: (message: AuthMail) => Promise<void>;
-  onEvent?: (event: 'email_accepted' | 'email_failed' | 'auth_failed') => void;
+  onEvent?: (event: AuthEvent) => void;
+}
+export function reportAuthEvent(event: AuthEvent) {
+  process.stdout.write(`${JSON.stringify({ event })}\n`);
 }
 const allowedPaths = new Set([
   'sign-in/email',
@@ -83,7 +81,7 @@ function safeUser(user: AuthUser): AuthUser {
   return { id: user.id, name: user.name, email: user.email };
 }
 
-/** Integração local: Better Auth mantém senha, sessão e tokens. A aplicação mantém suas políticas. */
+/** Better Auth mantém senha, sessão e tokens. A aplicação mantém suas políticas. */
 export function createAuthService(settings: AuthSettings, options: AuthOptions = {}) {
   const origin = new URL(settings.FRONTEND_URL).origin;
   const prefix = `renova-${createHash('sha256').update(settings.AUTH_SECRET).digest('hex').slice(0, 12)}`;
@@ -100,20 +98,8 @@ export function createAuthService(settings: AuthSettings, options: AuthOptions =
   });
   pool.on('error', () => options.onEvent?.('auth_failed'));
   const database = new Kysely({ dialect: new PostgresDialect({ pool }) });
-  const mail = nodemailer.createTransport({
-    host: settings.SMTP_HOST,
-    port: settings.SMTP_PORT,
-    secure: false,
-    connectionTimeout: 3000,
-    greetingTimeout: 3000,
-    socketTimeout: 5000,
-    ignoreTLS: true,
-  });
-  const send =
-    options.sendMail ??
-    (async (message: AuthMail) => {
-      await mail.sendMail({ from: settings.AUTH_EMAIL_FROM, ...message });
-    });
+  const mail = createMailTransport(settings);
+  const send = options.sendMail ?? mail.send;
   const deliveryContext = new AsyncLocalStorage<{ delivery: 'accepted' | 'failed' }>();
   const hmac = (text: string) =>
     createHmac('sha256', settings.AUTH_SECRET).update(text).digest('hex');

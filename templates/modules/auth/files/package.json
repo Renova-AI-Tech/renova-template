@@ -30,7 +30,12 @@
     "format": "biome check --write .",
     "prepare": "husky",
     "test:profiles": "node scripts/project/test-profiles.mjs",
-    "auth:invite": "tsx scripts/auth/invite.mjs"
+    "auth:invite": "tsx scripts/auth/invite.mjs",
+    "test:containers": "node --test tests/containers/runtime.test.mjs",
+    "deploy:setup": "node scripts/deploy/setup.mjs",
+    "deploy:prepare": "node scripts/deploy/release.mjs prepare",
+    "deploy:apply": "node scripts/deploy/release.mjs apply",
+    "deploy:verify": "node scripts/deploy/verify.mjs"
   },
   "devDependencies": {
     "yaml": "2.9.1",
@@ -44,7 +49,8 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.1.6",
     "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "railway": "3.16.0"
   },
   "lint-staged": {
     "*.{js,mjs,ts,tsx,css,json}": [

@@ -165,3 +165,33 @@ Cada sessão longa acrescenta um bloco no topo. Não apague histórico.
 - Layout alinhado ao padrão de mercado (AGENTS.md mapa, docs/ indexado, 3 skills, check-quick/full).
 - Sample money + UI 43123 verdes em `test:loop` / `check:quick`.
 - E2E existe; não entra no pre-push.
+
+## 2026-10-20 — Railway e convites externos em validação
+
+- Incremento autorizado em `codex/railway-email`, a partir de main `4ec710c`.
+- Container único Vite/Fastify, Postgres privado, bootstrap com papéis separados,
+  plano IaC nativo e publicação de commit aprovado no CI. Perfil público sem email.
+- Transporte Resend no perfil com login; Mailpit local preservado. Revisões frescas
+  corrigiram identidade runtime, origem com ponto final e senhas em SQL/logs.
+- `pnpm check:quick` passou; matriz completa dos perfis/containers em execução.
+- Piloto criado isoladamente no Railway; bootstrap e credenciais de ambos os
+  papéis comprovados pela rede privada. Nenhuma alteração no projeto Renova existente.
+- Resend/DNS e destinatário real aguardam definição; sem prova de entrega externa,
+  sem merge/liberação. [Evidência por camada](../specs/renova-project-template/railway-validation.md).
+
+## 2026-10-20 — pilotos Railway e email comprovados
+
+- Dois projetos independentes no Railway: público e autenticado, com Postgres próprio.
+- CI Blacksmith passou no template `775a4ae` e no clone autenticado `cd9a097`.
+  Saúde/readiness, UI pública, IP e restauração lógica do banco passaram.
+- Resend correto confirmado na equipe renovagp; chave de envio restrita configurada
+  somente no piloto autorizado, sem alterar DNS ou envios existentes.
+- Convite e recuperação recebidos na caixa de entrada; ativação, login, persistência,
+  logout, troca de senha, revogação e uso único passaram na API/UI remotas.
+- Ensaio encontrou dois defeitos reais: fonte inline bloqueada pela CSP e cópia do
+  pacote auth sem dependências no comando remoto. Ambos corrigidos com regressões;
+  política de segurança preservada e nova execução aprovada.
+- Revisão fresca confirmou a causa do import e a correção. Relato, comandos e
+  limites em [railway-validation](../specs/renova-project-template/railway-validation.md).
+- Backup gerenciado/PITR, aceite humano e evolução de produto existente continuam
+  separados. Nenhum banco local ou serviço da aplicação Renova existente foi alterado.

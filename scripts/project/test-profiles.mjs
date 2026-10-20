@@ -24,7 +24,7 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 const env = { ...process.env };
 for (const name of Object.keys(env)) {
   if (
-    /^(?:POSTGRES_|RENOVA_|AUTH_|SMTP_|MAILPIT_)/.test(name) ||
+    /^(?:POSTGRES_|RENOVA_|AUTH_|SMTP_|MAILPIT_|RESEND_|RAILWAY_)/.test(name) ||
     [
       'DATABASE_URL',
       'MIGRATION_DATABASE_URL',
@@ -33,6 +33,8 @@ for (const name of Object.keys(env)) {
       'FRONTEND_URL',
       'PROFILE',
       'NODE_ENV',
+      'DEPLOY_TARGET',
+      'BOOTSTRAP_DATABASE_URL',
     ].includes(name)
   )
     delete env[name];
@@ -98,6 +100,7 @@ try {
     await command('pnpm', ['install', '--frozen-lockfile'], destination);
     try {
       await command('pnpm', ['check:full'], destination);
+      await command('pnpm', ['test:containers'], destination);
     } finally {
       for (const path of ['test-results', 'playwright-report']) {
         try {

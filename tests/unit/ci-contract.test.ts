@@ -107,8 +107,10 @@ describe('contrato CI Blacksmith (REQ-031, REQ-039)', () => {
     }[]) {
       for (const step of job.steps) {
         if (step.uses) expect(step.uses).toMatch(/@[a-f0-9]{40}$/);
-        if (step.uses?.startsWith('actions/checkout@'))
+        if (step.uses?.startsWith('actions/checkout@')) {
           expect(step.with?.['persist-credentials']).toBe(false);
+          expect(step.with?.ref).toBe(`\${{ github.event.pull_request.head.sha || github.sha }}`);
+        }
       }
     }
     expect(readFileSync('.github/workflows/ci.yml', 'utf8')).not.toContain('secrets.');

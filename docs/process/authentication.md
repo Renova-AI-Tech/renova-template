@@ -69,8 +69,14 @@ Use `pnpm run doctor` para conferir o banco, o ambiente, os serviços e a caixa
 local sem alterar dados. Repita o setup para retomar uma preparação interrompida;
 não apague `.env`, `.renova` ou volumes para contornar conflitos.
 
-Este incremento é local. O perfil autenticado recusa execução em produção
-enquanto a entrega de email, HTTPS/proxy e publicação Railway não forem
-implementadas e verificadas na etapa própria. O template não cria contas
-administrativas remotas, não possui painel de usuários e não envia mensagens
-para contatos reais durante sua validação.
+O perfil autenticado exige configuração explícita de produção: destino Railway,
+origem HTTPS, credenciais próprias e Resend. Não possui cadastro público nem
+painel de usuários. A operação remota de convite é reservada ao responsável e
+exige validar entrega e ativação em cada nova instalação.
+
+## Publicação e email externo
+
+O transporte de produção usa Resend HTTPS; o uso local permanece no Mailpit.
+Siga [o guia Railway](railway.md) para destino, chave restrita e convite remoto.
+A [validação dos pilotos](../specs/renova-project-template/railway-validation.md) inclui
+convite, recuperação recebida e revogação de sessão. Repita a prova no novo destino.

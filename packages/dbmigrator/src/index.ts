@@ -17,6 +17,21 @@ export interface MigrationTarget {
   readonly target: 'local' | 'test';
 }
 
+export interface RailwayMigrationTarget {
+  readonly connectionString: string;
+  readonly expectedDatabase: string;
+  readonly projectId: string;
+  readonly environmentId: string;
+  readonly target: 'railway';
+}
+
+export interface RuntimeDatabaseTarget {
+  readonly target: 'railway';
+  readonly expectedDatabase: string;
+  readonly projectId: string;
+  readonly environmentId: string;
+}
+
 export class MigrationError extends Error {
   constructor(
     readonly code:
@@ -78,12 +93,54 @@ function validateTarget(target: MigrationTarget): void {
   }
 }
 
-/** Aplica migrations em local/test; publicação remota terá um driver separado. */
+function validateRailwayTarget(target: RailwayMigrationTarget): void {
+  const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
+  try {
+    const url = new URL(target.connectionString);
+    if (
+      target.target !== 'railway' ||
+      !uuid.test(target.projectId) ||
+      !uuid.test(target.environmentId) ||
+      !/^[a-z][a-z0-9_]{0,62}$/.test(target.expectedDatabase) ||
+      ['postgres', 'template0', 'template1'].includes(target.expectedDatabase) ||
+      !['postgres:', 'postgresql:'].includes(url.protocol) ||
+      !/^[a-z0-9][a-z0-9-]*\.railway\.internal$/.test(url.hostname) ||
+      url.port !== '5432' ||
+      url.username !== 'renova_migrator' ||
+      !url.password ||
+      url.pathname !== `/${target.expectedDatabase}` ||
+      url.search ||
+      url.hash
+    ) {
+      throw new MigrationError('INVALID_TARGET');
+    }
+  } catch {
+    throw new MigrationError('INVALID_TARGET');
+  }
+}
+
+/** O driver local continua restrito a loopback e bancos local/test vinculados. */
 export async function runMigrations(
   target: MigrationTarget,
   manifest: readonly Migration[] = migrations,
 ): Promise<{ applied: number; version: string }> {
   validateTarget(target);
+  return applyMigrations(target, manifest);
+}
+
+/** Driver remoto explícito; identidade do projeto e ambiente é conferida no banco. */
+export async function runRailwayMigrations(
+  target: RailwayMigrationTarget,
+  manifest: readonly Migration[] = migrations,
+): Promise<{ applied: number; version: string }> {
+  validateRailwayTarget(target);
+  return applyMigrations(target, manifest);
+}
+
+async function applyMigrations(
+  target: MigrationTarget | RailwayMigrationTarget,
+  manifest: readonly Migration[],
+): Promise<{ applied: number; version: string }> {
   validateManifest(manifest);
   const client = new pg.Client({
     connectionString: target.connectionString,
@@ -96,17 +153,28 @@ export async function runMigrations(
     const identity = await client.query<{
       database: string;
       project_id: string;
+      environment_id?: string;
       role: string;
       rolsuper: boolean;
+      rolcreatedb: boolean;
+      rolcreaterole: boolean;
+      rolreplication: boolean;
+      rolbypassrls: boolean;
     }>(
-      'select current_database() as database, project_id, current_user as role, rolsuper from renova_bootstrap.identity cross join pg_roles where rolname = current_user',
+      `select current_database() as database, project_id, ${target.target === 'railway' ? 'environment_id,' : ''} current_user as role, rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls from renova_bootstrap.identity cross join pg_roles where rolname = current_user`,
     );
     if (
       identity.rows.length !== 1 ||
       identity.rows[0]?.database !== target.expectedDatabase ||
       identity.rows[0]?.project_id !== target.projectId ||
       identity.rows[0]?.role !== 'renova_migrator' ||
-      identity.rows[0]?.rolsuper
+      identity.rows[0]?.rolsuper ||
+      (target.target === 'railway' &&
+        (identity.rows[0]?.environment_id !== target.environmentId ||
+          identity.rows[0]?.rolcreatedb ||
+          identity.rows[0]?.rolcreaterole ||
+          identity.rows[0]?.rolreplication ||
+          identity.rows[0]?.rolbypassrls))
     ) {
       throw new MigrationError('IDENTITY_MISMATCH');
     }
@@ -148,9 +216,53 @@ GRANT SELECT ON renova_meta.migrations TO renova_runtime;`);
 export async function checkReadiness(
   database: Pick<pg.Pool, 'query'>,
   manifest: readonly Migration[] = migrations,
+  target?: RuntimeDatabaseTarget,
 ): Promise<boolean> {
   try {
     validateManifest(manifest);
+    if (target) {
+      const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
+      if (
+        target.target !== 'railway' ||
+        !uuid.test(target.projectId) ||
+        !uuid.test(target.environmentId) ||
+        !/^[a-z][a-z0-9_]{0,62}$/.test(target.expectedDatabase) ||
+        ['postgres', 'template0', 'template1'].includes(target.expectedDatabase)
+      )
+        return false;
+      const identity = await database.query<{
+        database: string;
+        project_id: string;
+        environment_id: string;
+        role: string;
+        rolsuper: boolean;
+        rolcreatedb: boolean;
+        rolcreaterole: boolean;
+        rolreplication: boolean;
+        rolbypassrls: boolean;
+        has_membership: boolean;
+      }>(
+        `SELECT current_database() AS database, project_id, environment_id, current_user AS role,
+          rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls,
+          EXISTS (SELECT 1 FROM pg_auth_members WHERE member = pg_roles.oid) AS has_membership
+          FROM renova_bootstrap.identity CROSS JOIN pg_roles WHERE rolname = current_user`,
+      );
+      const row = identity.rows[0];
+      if (
+        identity.rows.length !== 1 ||
+        row?.database !== target.expectedDatabase ||
+        row?.project_id !== target.projectId ||
+        row?.environment_id !== target.environmentId ||
+        row?.role !== 'renova_runtime' ||
+        row?.rolsuper !== false ||
+        row?.rolcreatedb !== false ||
+        row?.rolcreaterole !== false ||
+        row?.rolreplication !== false ||
+        row?.rolbypassrls !== false ||
+        row?.has_membership !== false
+      )
+        return false;
+    }
     const history = await database.query<AppliedMigration>(
       'SELECT id, checksum FROM renova_meta.migrations ORDER BY id',
     );

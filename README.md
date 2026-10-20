@@ -3,8 +3,8 @@
 Monorepo independente com **React/Vite, Fastify, Postgres e design system Renova**.
 Cada projeto tem seu código, banco e credenciais próprios. O configurador prepara
 a base local sem exigir contas corporativas. Escolha **sem login, somente leitura**
-ou **com login por convite** ao iniciar um projeto. A publicação Railway segue no
-[plano](docs/specs/renova-project-template/tasks.md).
+ou **com login por convite** ao iniciar um projeto. A publicação usa o
+[guia Railway](docs/process/railway.md), validado em pilotos independentes.
 
 ## Começar
 
@@ -115,3 +115,5 @@ opcionais. Siga a [receita da tarefa](docs/process/task-recipe.md).
 Se quiser revisão por responsáveis, descomente as regras de CODEOWNERS com usuários
 ou times reais. Os exemplos comentados não criam uma exigência para começar.
 Não há publicação ou conexão automática a um projeto Railway existente.
+
+Publicação: [guia Railway e convites](docs/process/railway.md). Os dois perfis passaram nos pilotos remotos; consulte as [evidências e pendências](docs/specs/renova-project-template/railway-validation.md).

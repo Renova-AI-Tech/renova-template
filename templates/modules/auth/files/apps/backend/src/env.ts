@@ -1,3 +1,4 @@
+import { isIP } from 'node:net';
 import { z } from 'zod';
 
 const loopbackHosts = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
@@ -21,16 +22,30 @@ function parseDatabaseUrl(value: string): URL | undefined {
 const schema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    DEPLOY_TARGET: z.enum(['local', 'railway']).default('local'),
     HOST: z.string().min(1).default('127.0.0.1'),
     PORT: z.coerce.number().int().min(1).max(65535).default(43124),
     FRONTEND_URL: z.url().default('http://127.0.0.1:43123'),
     DATABASE_URL: z.string().refine((value) => parseDatabaseUrl(value) !== undefined),
     PROFILE: z.literal('authenticated').default('authenticated'),
     AUTH_SECRET: z.string().regex(/^[a-f0-9]{64}$/),
-    SMTP_HOST: z.literal('127.0.0.1'),
-    SMTP_PORT: z.coerce.number().int().min(1).max(65535),
-    MAILPIT_PORT: z.coerce.number().int().min(1).max(65535),
+    SMTP_HOST: z.literal('127.0.0.1').optional(),
+    SMTP_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+    MAILPIT_PORT: z.coerce.number().int().min(1).max(65535).optional(),
     AUTH_EMAIL_FROM: z.email(),
+    RESEND_API_KEY: z
+      .string()
+      .regex(/^re_[A-Za-z0-9_-]{10,}$/)
+      .optional(),
+    RAILWAY_PROJECT_ID: z.uuid().optional(),
+    RAILWAY_ENVIRONMENT_ID: z.uuid().optional(),
+    RAILWAY_SERVICE_ID: z.uuid().optional(),
+    RENOVA_DB_NAME: z
+      .string()
+      .regex(/^[a-z][a-z0-9_]{0,62}$/)
+      .optional(),
+    RENOVA_DB_PROJECT_ID: z.uuid().optional(),
+    RENOVA_DB_ENVIRONMENT_ID: z.uuid().optional(),
   })
   .superRefine((value, ctx) => {
     let frontend: URL;
@@ -56,13 +71,59 @@ const schema = z
     if (value.NODE_ENV !== 'production' && !loopbackHosts.has(frontend.hostname)) {
       ctx.addIssue({ code: 'custom', path: ['FRONTEND_URL'], message: 'Use loopback locally.' });
     }
+    if (value.NODE_ENV !== 'production') {
+      if (value.DEPLOY_TARGET !== 'local')
+        ctx.addIssue({ code: 'custom', path: ['DEPLOY_TARGET'], message: 'Use local target.' });
+      for (const key of ['SMTP_HOST', 'SMTP_PORT', 'MAILPIT_PORT'] as const) {
+        if (!value[key])
+          ctx.addIssue({ code: 'custom', path: [key], message: 'Configure local email.' });
+      }
+      if (value.RESEND_API_KEY)
+        ctx.addIssue({ code: 'custom', path: ['RESEND_API_KEY'], message: 'Use local email.' });
+    }
     if (value.NODE_ENV === 'production') {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['SMTP_HOST'],
-        message: 'Configure and validate a production email provider before deployment.',
-      });
-      if (frontend.protocol !== 'https:' || loopbackHosts.has(frontend.hostname)) {
+      if (value.DEPLOY_TARGET !== 'railway')
+        ctx.addIssue({ code: 'custom', path: ['DEPLOY_TARGET'], message: 'Use Railway target.' });
+      for (const key of [
+        'RESEND_API_KEY',
+        'RAILWAY_PROJECT_ID',
+        'RAILWAY_ENVIRONMENT_ID',
+        'RAILWAY_SERVICE_ID',
+        'RENOVA_DB_NAME',
+      ] as const) {
+        if (!value[key])
+          ctx.addIssue({ code: 'custom', path: [key], message: 'Configure production runtime.' });
+      }
+      for (const key of ['SMTP_HOST', 'SMTP_PORT', 'MAILPIT_PORT'] as const) {
+        if (value[key] !== undefined)
+          ctx.addIssue({ code: 'custom', path: [key], message: 'Local email is not production.' });
+      }
+      if (/^([a-f0-9])\1+$/.test(value.AUTH_SECRET))
+        ctx.addIssue({ code: 'custom', path: ['AUTH_SECRET'], message: 'Use a unique secret.' });
+      if (/@[^@]*\.(local|test|invalid)$/i.test(value.AUTH_EMAIL_FROM))
+        ctx.addIssue({
+          code: 'custom',
+          path: ['AUTH_EMAIL_FROM'],
+          message: 'Use a verified sender.',
+        });
+      for (const [stored, current] of [
+        ['RENOVA_DB_PROJECT_ID', 'RAILWAY_PROJECT_ID'],
+        ['RENOVA_DB_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_ID'],
+      ] as const) {
+        if (value[stored] !== undefined && value[stored] !== value[current])
+          ctx.addIssue({
+            code: 'custom',
+            path: [stored],
+            message: 'Deployment identity mismatch.',
+          });
+      }
+      if (
+        frontend.protocol !== 'https:' ||
+        frontend.hostname.endsWith('.') ||
+        isIP(frontend.hostname.replace(/^\[|\]$/g, '')) !== 0 ||
+        !frontend.hostname.includes('.') ||
+        /\.(localhost|local|internal|test|invalid)$/i.test(frontend.hostname)
+      ) {
         ctx.addIssue({
           code: 'custom',
           path: ['FRONTEND_URL'],
@@ -72,9 +133,9 @@ const schema = z
       const database = parseDatabaseUrl(value.DATABASE_URL);
       if (
         database &&
-        (['postgres', 'root', 'admin'].includes(
-          decodeURIComponent(database.username).toLowerCase(),
-        ) ||
+        (decodeURIComponent(database.username) !== 'renova_runtime' ||
+          !database.hostname.endsWith('.railway.internal') ||
+          database.pathname !== `/${value.RENOVA_DB_NAME}` ||
           insecureCredentials.has(decodeURIComponent(database.password).toLowerCase()) ||
           decodeURIComponent(database.password).length < 24)
       ) {

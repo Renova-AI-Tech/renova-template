@@ -6,14 +6,16 @@ Incremento local entregue: autenticação opcional autorizada após confirmar o 
 local; T-030 (adição a produto existente) continua separada. A receita fixa vive em
 `templates/modules/auth/files`, fora dos workspaces: somente o perfil escolhido
 recebe dependências, tabelas e páginas de auth. Não há carregador de plugins.
-Email local usa Mailpit isolado por projeto; o perfil autenticado recusa produção
-até a etapa de entrega remota. O [guia de acesso](../../process/authentication.md)
-concentra a operação para humanos e IA.
+Email local usa Mailpit isolado por projeto; o transporte Resend HTTPS está
+implementado para o Railway, com entrega e jornada validadas nos pilotos isolados. Os guias de [acesso](../../process/authentication.md) e
+[Railway](../../process/railway.md) concentram a operação para humanos e IA.
 
 Estado: plano aprovado; T-000–T-019 e T-031 implementados e validados localmente.
-As seções descrevem a arquitetura completa pretendida. Configuração guiada e
+As seções descrevem a arquitetura implementada e identificam evoluções futuras. Configuração guiada e
 diagnóstico já estão entregues; T-015–T-019 implementam a autenticação opcional local
-e passaram pela [validação local](auth-validation.md). Containers de aplicação e Railway continuam futuros.
+e passaram pela [validação local](auth-validation.md). Docker, publicação Railway
+e Resend estão implementados; evidências e pendências remotas ficam em
+[railway-validation.md](railway-validation.md). T-030 continua futuro.
 A base local já tem Vite/Fastify/Postgres/UI; o exemplo anterior foi retirado
 por autorização do usuário.
 
@@ -37,7 +39,7 @@ flowchart LR
   R --> L[Local: Vite e Fastify + Postgres Docker]
   R --> G[GitHub Actions: Blacksmith]
   G --> D[Publicação aprovada]
-  D --> W[Railway: frontend + backend + Postgres]
+  D --> W[Railway: app Vite/Fastify + Postgres]
 ```
 
 ## Fronteira de composição
@@ -55,7 +57,7 @@ flowchart LR
 Sem login é um perfil suportado. Não existe `AUTH_ENABLED=false` que converte
 handlers protegidos em públicos. A política de acesso é registrada junto à rota.
 
-## Estrutura local e complemento remoto previsto
+## Estrutura local e publicação remota
 
 ```text
 apps/frontend/                  Vite, rotas, providers e cliente tRPC
@@ -69,14 +71,12 @@ templates/modules/auth/files/   arquivos da receita, fora dos workspaces runtime
 templates/modules/auth/recipe.json  caminhos e hashes da base substituível
 scripts/project/                configuração, planos, geração e diagnóstico
 scripts/auth/invite.mjs         somente com login; liberação local pelo responsável
-scripts/deploy/                 futuro: plano, aplicação e verificação Railway
+scripts/deploy/                 setup, plano, aplicação e verificação Railway
 renova.project.json             identidade e capacidades, sem segredos
 .renova/                       estado local ignorado de projeto, setup e banco
 docker-compose.yml             Postgres; caixa de email apenas com auth
-Dockerfile.frontend              futuro: build raiz e Caddy
-Dockerfile.backend               futuro: backend e runner de migration
-railway.frontend.json            futuro: configuração declarativa do serviço
-railway.backend.json             futuro: configuração declarativa do serviço
+Dockerfile                       build Vite/Fastify e runner de migration
+.railway/railway.ts               IaC nativo, somente serviço app
 ```
 
 Node 24 e pnpm com versão exata no `packageManager`. Manter workspaces e scripts
@@ -101,8 +101,9 @@ Atualizações de dependências recompõem e validam os dois perfis.
 5. `pnpm dev` mostra URL local e estado dos serviços. `pnpm run doctor` explica falhas.
 6. Com login, o responsável libera a conta pelo comando `auth:invite`; a pessoa
    abre o link capturado no Mailpit e define sua própria senha.
-7. Na etapa futura Railway, `pnpm deploy:prepare` deverá gerar o plano; apply
-   separado exigirá destino e autorização explícitos.
+7. Para publicar, seguir o [guia Railway](../../process/railway.md): criar um
+   serviço `app` e Postgres privado, executar `deploy:setup` com IDs explícitos,
+   preparar o plano, aplicá-lo após CI aprovado e verificar a origem publicada.
 
 GitHub/Railway ausentes não bloqueiam local. Ferramenta de tarefas é opcional
 também para PRs; objetivo e critérios ficam no pedido/spec local. Instalação de Docker/Node
@@ -110,9 +111,9 @@ também para PRs; objetivo e critérios ficam no pedido/spec local. Instalação
 privilégios. macOS, Linux e WSL2 são a matriz inicial. Um devcontainer pode ser
 avaliado depois do piloto se os pré-requisitos forem o principal obstáculo.
 
-Setup, doctor e a receita de login local estão implementados; a validação do
-incremento auth segue em T-015–T-019. Os comandos de módulos e deploy continuam
-futuros. Use `run`: `setup` e `doctor` também são comandos internos do pnpm.
+Setup, doctor, a receita de login local e os comandos de publicação estão
+implementados. `module:add` continua futuro em T-030. Use `run`: `setup` e `doctor`
+também são comandos internos do pnpm.
 
 | Comando | Efeito | Não faz |
 | --- | --- | --- |
@@ -122,10 +123,12 @@ futuros. Use `run`: `setup` e `doctor` também são comandos internos do pnpm.
 | `pnpm auth:invite -- email@exemplo.com "Nome da pessoa"` | Libera conta e envia link à caixa local no perfil com login | Não cria senha padrão nem envia email externo |
 | `pnpm test:profiles` | Materializa os dois perfis em cópias descartáveis e executa seus gates | Não modifica o ambiente local existente |
 | Futuro: `pnpm module:add -- auth --plan` | Planejará evolução de projeto existente | Não muda automaticamente ownership ou permissões |
-| Futuro: `pnpm deploy:prepare -- --target railway` | Consulta autorização/destino e calcula plano | Não cria, altera nem publica |
-| Futuro: `pnpm deploy:apply -- --plan-id ID` | Aplica plano atual explicitamente aprovado | Não usa projeto selecionado implicitamente no CLI |
+| `pnpm deploy:setup --project PROJETO_UUID --environment AMBIENTE_UUID --service APP_UUID --database POSTGRES_UUID --origin https://seu-app.up.railway.app` | Prepara identidade e credenciais próprias no banco novo e configura variáveis do app | Não cria recursos Railway, copia dados locais nem publica código |
+| `pnpm deploy:prepare --project PROJETO_UUID --environment AMBIENTE_UUID --service APP_UUID` | Valida destino e fixa o plano IaC nativo ao commit limpo | Não altera configuração remota nem publica |
+| `pnpm deploy:apply --confirm-project PROJETO_UUID` | Revalida plano/destino/CI e envia o código do mesmo commit | Não usa destino implícito nem comprova saúde do deployment |
+| `pnpm deploy:verify --origin https://seu-app.up.railway.app` | Verifica HTTP, health/readiness, estáticos e mesma origem | Não comprova entrega de email, restauração ou aceite humano |
 
-Sem TTY, `--config` é obrigatório, inclusive para `--plan`; aplicar exige `--yes`. Ausência de escolhas obrigatórias termina com código 2; não aguarda
+No setup local sem TTY, `--config` é obrigatório, inclusive para `--plan`; aplicar exige `--yes`. Ausência de escolhas obrigatórias termina com código 2; não aguarda
 entrada para sempre. JSON tem versão de schema, `status` e `nextActions`; doctor contém `checks`, setup contém `steps` e plano contém `files`; segredos nunca integram sua saída. Não interpretar uma string do
 manifesto como comando shell: argumentos estruturados e catálogo local confiável.
 
@@ -153,7 +156,9 @@ Paths de saída são resolvidos sob a raiz autorizada e symlinks de escape recus
 `initialTarget` não determina autorização runtime. Configuração por ambiente fica
 em env validado. IDs reais da instalação Railway são registrados após vinculação;
 não entram como defaults no template de origem. Tokens e senhas ficam em `.env`
-local ignorado ou no cofre do provedor. Nenhum `.env` criptografado do Renova atual
+local ignorado ou no cofre do provedor. `deploy:setup` também preserva credenciais
+próprias em `.renova/railway-credentials.json`, ignorado e com permissão 0600, para
+reexecução sem rotação. Nenhum `.env` criptografado do Renova atual
 é copiado. O manifesto não contém credenciais nem estado pessoal.
 
 Estado de setup: `planned → applying → ready` ou `failed`. Cada etapa registra
@@ -180,7 +185,8 @@ novo clone de produto autenticado reconhece a composição já instalada sem dep
 do estado ignorado em `.renova`, preservando personalizações na repetição.
 Remoção automática de login e adição a produto já preparado continuam recusadas.
 Após criar ambiente local, o slug fica fixo para preservar a identidade do banco.
-Somente o destino `local` é aplicável; Railway é recusado antes de escrever.
+O configurador local aceita somente `initialTarget: local`; a publicação Railway
+usa comandos separados e não muda esse contrato.
 
 A preparação local registra passos sanitizados em `.renova/setup-state.json`, confere
 pré-requisitos, instala o lockfile, prepara credenciais, sobe Postgres e migra o schema.
@@ -217,7 +223,7 @@ do produto, reutilizando componentes da referência e de `@renova/ui`.
 | Doctor | `diagnose(target)` | Estado sanitizado, causa e ação; não corrige escondido |
 | Política API | `registerOperation({access, handler})` | Política obrigatória e default deny |
 | Auth opcional | `getSession(request)`, handler da biblioteca | Identidade sem regras BPO/empresa |
-| Deploy | `planDeployment`, `applyDeployment`, `verifyDeployment` | Destino explícito, plano/hash, retomada e provas separadas |
+| Deploy | `setupRailway`, `prepareRelease`, `applyRelease` e CLI `deploy:verify` | Destino explícito, plano IaC nativo, hash/validade e verificação separada |
 
 Não criar abstração para vários provedores de auth ou deploy na primeira versão.
 Uma fronteira pequena atende o caso real; nova implementação exige demanda e teste.
@@ -239,14 +245,16 @@ localmente; a conta permanece pendente até a pessoa usar o link único e defini
 senha. A receita oferece entrada, ativação, saída e recuperação sem senha universal,
 seed admin remoto, painel de gestão ou mensagens de produto.
 
-Mailpit **1.31.6** captura os emails no Docker deste projeto, com SMTP e interface
-acessíveis somente em loopback e sem relay externo. Produção é recusada pelo
-perfil autenticado neste incremento, inclusive se outras variáveis parecerem
-válidas; selecionar e validar entrega remota faz parte da etapa futura Railway.
+Mailpit **1.31.6** captura os emails locais no Docker deste projeto, com SMTP e
+interface acessíveis somente em loopback e sem relay externo. No Railway, o
+perfil autenticado exige `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, segredo próprio e
+origem HTTPS canônica. O transporte usa Resend por HTTPS, com timeout, sem
+redirecionamento nem repetição silenciosa. O convite remoto confere IDs do destino
+e identidade real do banco; empacotamento e jornada remota passaram no piloto.
 Falha de envio preserva a conta pendente e permite reenvio limitado pelo comando.
 Recuperação mantém resposta genérica para email existente/inexistente, inclusive
-em falha de envio. O comando administrativo informa falha ou aceitação local sem
-expor tokens; aceitação pelo SMTP não prova recebimento por uma pessoa.
+em falha de envio. O comando administrativo informa falha ou aceitação do envio
+sem expor tokens; aceitação pelo SMTP ou Resend não prova recebimento por uma pessoa.
 
 Migrations próprias e revisadas criam as tabelas `auth_user`, `auth_account`,
 `auth_session`, `auth_verification`, `auth_rate_limit`, `auth_account_limits` e
@@ -300,37 +308,44 @@ essa prova. O catálogo não mostra informações internas, tokens ou dados reai
 
 ## Railway e CI
 
-Frontend Caddy público, proxy `/api` para Fastify privado, Postgres privado e volume
-próprio. Build usa raiz do monorepo e inclui dependências compartilhadas nos filtros.
-Mesma versão major de Postgres em local, CI e piloto; selecionar e fixar versão
-suportada durante a execução, sem reproduzir divergência 15/18 observada na origem.
+Uma imagem Docker executa o serviço `app`: Fastify serve o build Vite e `/api` na
+mesma origem. Postgres 18 fica na rede privada, com volume próprio, no mesmo
+projeto e ambiente. O desenvolvimento mantém Vite e Fastify separados. O build
+usa a raiz do monorepo e inclui as dependências compartilhadas necessárias.
 
-`prepare` resolve organização/repo/workspace/ambiente com consultas de leitura;
-apresenta configurações, recursos, responsáveis e impacto de custo, sem inventar
-cotação. Plano sanitizado tem identificador/hash e validade proposta de 30 minutos.
-Inclui SHA do commit, hash do contexto de build/lockfile e, se já houver imagem,
-seu digest. Publicação usa checkout limpo desse SHA ou o digest aprovado, nunca
-o conteúdo mutável da branch nem WIP local. Antes de qualquer publicação, `apply`
-consulta sucesso explícito de todos os checks obrigatórios desse SHA; pendente,
-cancelado, ignorado, ausente ou falho recusa a ação. Não basta o CI de outro commit.
-Alteração de código, artefato ou plano invalida o aceite. O piloto deve provar que
-o provedor recebeu a revisão aprovada; caminhos que não a fixem não são habilitados.
-Autodeploy fora desse contrato permanece desabilitado até provar gate equivalente.
-`apply` exige aceite do plano atual, revalida inventário, cria somente os recursos
-ausentes e registra IDs após confirmação. Resultado desconhecido exige consulta
-antes de retry. Divergência de destino ou estado exige novo plano. Falha não apaga
-recursos com dados nem move produção existente.
+O responsável cria o projeto novo, Postgres e serviço vazio `app`. `deploy:setup`
+exige os quatro IDs e a origem HTTPS; prepara papéis separados, permissões e
+identidade do banco por SSH/stdin no Postgres. A credencial administrativa não vai
+para o app. Reexecução preserva credenciais; identidade divergente ou banco ocupado
+sem a identidade esperada são recusados. Variáveis são configuradas sem publicar.
+
+`deploy:prepare` exige IDs explícitos de projeto, ambiente e serviço, valida o
+vínculo e gera o plano nativo de `.railway/railway.ts`. O recorte `renova-app`
+administra somente `app`; plano destrutivo é recusado. `.renova/railway` guarda o
+plano e metadados com permissão 0600: SHA do commit, árvore `.railway`, destino,
+hash do plano e validade de 30 minutos. A saída mostra IDs e ações sanitizadas.
+
+`deploy:apply --confirm-project` revalida destino, hash, validade, HEAD e árvore
+limpa, incluindo arquivos não ignorados. Exige sucesso do workflow `CI` mais
+recente e do job `required` para o SHA exato. Aplica o plano nativo salvo e envia
+um `git archive` desse commit por `railway up`; não publica WIP nem seleciona um
+digest de imagem. Configuração, upload e verificação de saúde são etapas distintas.
+Autodeploy que contorne esse gate não deve ser conectado. Resultado desconhecido
+exige consulta antes de repetir; divergência exige novo plano. Falha não apaga
+recursos. O plano não cria nem administra o Postgres ou seu volume.
 
 Publicação inicial usa domínio gerado Railway; domínio corporativo é etapa
 adicional explícita. Nenhuma migração da infraestrutura Renova atual faz parte
 do plano. Banco local nunca é copiado implicitamente. Backups e restauração em
 destino descartável devem ser ensaiados antes de admitir dados reais.
 
-Pré-deploy do backend aplica migrations compatíveis com release anterior e
-aborta em falha; não rodar migration no build ou em toda inicialização de réplica.
-`/health` é liveness; `/ready` verifica DB e versão esperada de schema com resposta
-sanitizada. Não declarar frontend saudável como prova de fluxo autenticado.
-Rollback de imagem não reverte banco; mudança destrutiva precisa plano separado.
+Pré-deploy aplica migrations com papel próprio, lock e transação; falha impede
+promoção. Não roda no build ou na inicialização da API. `/health` é liveness;
+`/ready` verifica identidade, permissões e histórico de migrations com resposta
+sanitizada. `deploy:verify --origin` verifica os endpoints e estáticos por HTTPS;
+não declara frontend saudável como prova de fluxo autenticado ou entrega de email.
+Readiness exige histórico exato: uma imagem antiga não é automaticamente compatível
+com schema novo. Rollback de imagem não reverte banco; mudança destrutiva precisa plano separado.
 
 GitHub Actions executa os jobs em Blacksmith. Labels configuradas:
 `blacksmith-2vcpu-ubuntu-2404` para checks rápidos e
@@ -350,10 +365,9 @@ Cache de imagem não persiste dados.
 Playwright instala Chromium compatível e dependências explicitamente, começa com
 um worker e publica trace/relatório sanitizados. Medir execução fria e quente.
 
-Na etapa futura de containers, CI deverá validar imagens com `push: false`. Cache de camadas Blacksmith é opcional e tem
-cobrança própria; não acelera automaticamente builds do Railway. Se adotado,
-reconfirmar as actions oficiais da documentação especializada (`setup-docker-builder`
-e `build-push-action` v2 na consulta), fixar SHAs revisados e chave por workload.
+CI executa `pnpm test:containers`, que constrói e exercita a imagem sem publicar.
+Cache de camadas Blacksmith é opcional e tem cobrança própria; não acelera
+automaticamente builds do Railway. Sua adoção exige validação separada.
 Actions e imagens da cadeia de build têm versões fixadas e atualização revisada.
 `GITHUB_TOKEN` somente leitura por padrão; CI de PR não recebe credenciais Railway
 nem segredos de produção. Regras de forks/PRs não promovem código não confiável a
@@ -398,7 +412,7 @@ distintos. Não prometer propagação automática para clones antigos.
 | UI do Renova | `packages/ui` | Higienizar defaults, fontes e CSS |
 | Transporte tRPC e padrão service/repository | Frontend/backend | Tipos exportados; nenhum domínio BPO |
 | Compose e proteção de alvo do DB | Setup/testes | Parametrizar nomes/portas, não congelar máquina do dono |
-| Caddy e containers Renova | Deploy | Remover domínios/IDs/segredos específicos |
+| Padrões de containers Renova | Deploy | Imagem única Vite/Fastify, sem domínios/IDs/segredos específicos |
 | Auth/observabilidade Renova | Referência | Não copiar política multiempresa nem inicialização de integrações |
 
 ## Risks & Concerns
@@ -414,17 +428,27 @@ distintos. Não prometer propagação automática para clones antigos.
 | Remoto/checkout de origem divergem e há WIP | Copiar trabalho não aprovado | SHA de origem explícita, sem tocar checkout |
 | Sem dependências instaladas neste clone | Não executar testes de aplicação nesta rodada | Validar docs/harness; instalar e testar só ao implementar |
 | Muitas opções futuras | Custo combinatório | Dois perfis; nova capacidade exige matriz própria |
-| Plano GitHub/workspace Railway pendentes | Automatização incompleta | Preflight operacional e trava explícita, T-024/T-025 |
+| Acessos GitHub/workspace Railway por instalação | Destino ou CI sem autorização | IDs explícitos, plano nativo e gate do SHA exato, T-024/T-025 |
 
 ## Validation Strategy
 
 Unitário verifica parsers, políticas e planos. Integração usa Postgres descartável
 para persistência, migrations e auth. Navegador verifica a jornada real, duas
 identidades, logout/recuperação, UI, teclado e responsividade. Containers verificam
-proxy, cookies, estáticos e ausência de segredo. Piloto remoto verifica instalação
+mesma origem, cookies, estáticos e ausência de segredo. Piloto remoto verifica instalação
 e publicação em serviços isolados. Piloto humano mede a experiência, separadamente.
 
 Verificador em contexto fresco reconstrói cobertura e aplica falhas controladas
 em cópia descartável: remover ownership, aceitar origem indevida, expor secret
 sentinela, tornar E2E não bloqueante e apontar teste a DB proibido. Mutante sobrevivente
 reabre a tarefa. Não executar esses ensaios no projeto real ou em produção.
+
+### Incremento Railway autorizado em 20/10/2026
+
+Implementação e piloto isolado autorizados pelo usuário. Guia operacional em
+[railway.md](../../process/railway.md), com envio Resend HTTPS e Mailpit preservado
+localmente. Recursos iniciais são criados pelo responsável no Railway; o template
+usa plano nativo IaC para configurar somente a aplicação. Não implementa um motor
+próprio de infraestrutura nem autoriza remover bancos. `deploy:setup` vincula um
+banco novo; `deploy:prepare`/`deploy:apply` publicam um commit aprovado no CI.
+O perfil público dispensa email. A validação remota é registrada separadamente.

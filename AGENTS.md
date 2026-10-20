@@ -39,8 +39,12 @@ Para IA: `pnpm run setup -- --config renova.project.json --plan --json`, depois
 `--yes --json` para preparar localmente. `pnpm run doctor -- --json` não modifica
 arquivos. Login opcional é instalado somente em clone novo, por receita fixa em
 `templates/modules/auth`; veja [acesso](docs/process/authentication.md). O perfil
-público não carrega auth. Railway e adição automática de login a produto existente
-continuam futuras; não simule sua disponibilidade.
+público não carrega auth. A publicação [Railway](docs/process/railway.md) usa uma
+aplicação e Postgres privado, com `deploy:setup`, `deploy:prepare`, `deploy:apply`
+e `deploy:verify`; setup e prepare exigem IDs explícitos, apply confirma o projeto
+do plano e verify recebe a origem HTTPS. Resend foi validado no piloto; veja a
+[evidência](docs/specs/renova-project-template/railway-validation.md). Adição automática de login a produto existente
+(T-030) continua futura.
 
 ## Inegotiável
 
