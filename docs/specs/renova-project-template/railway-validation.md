@@ -17,8 +17,9 @@ seu próprio destino somente quando precisar publicar.
   (America/Sao_Paulo). Essa remoção futura ainda não foi observada.
 - Resend: chave exclusiva `renova-email-piloto` revogada na equipe `renovagp`;
   a chave anterior `Onboarding`, o domínio verificado e o DNS foram preservados.
-- GitHub: exclusão do clone `Renova-AI-Tech/renova-email-piloto` solicitada;
-  aguarda confirmação de identidade do responsável no GitHub Mobile.
+- GitHub: clone `Renova-AI-Tech/renova-email-piloto` excluído após confirmação
+  de identidade do responsável. A interface confirmou a exclusão e a API
+  autenticada passou a retornar HTTP 404 para esse repositório.
 - O repositório `Renova-AI-Tech/renova-template`, o projeto Railway `renova` e
   os bancos locais foram preservados. A busca nos arquivos rastreados confirmou
   que as referências aos pilotos estão apenas neste relatório.
