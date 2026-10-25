@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseProjectConfig } from '../../scripts/project/config.mjs';
 
@@ -82,5 +84,17 @@ describe('project configuration (REQ-002, REQ-003, REQ-037)', () => {
       parseProjectConfig({ ...valid, project: { ...valid.project, displayName: '<b>Nome</b>' } })
         .project.displayName,
     ).toBe('<b>Nome</b>');
+  });
+
+  it('receita de login aponta para o hash atual da base substituivel', () => {
+    const recipe = JSON.parse(readFileSync('templates/modules/auth/recipe.json', 'utf8'));
+    const digest = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex');
+    for (const entry of recipe.entries as { path: string; beforeSha256: string | null }[]) {
+      if (entry.beforeSha256 === null) {
+        expect(existsSync(entry.path)).toBe(false);
+        continue;
+      }
+      expect(digest(entry.path)).toBe(entry.beforeSha256);
+    }
   });
 });
