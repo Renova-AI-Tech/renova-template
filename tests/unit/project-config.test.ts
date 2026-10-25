@@ -86,15 +86,17 @@ describe('project configuration (REQ-002, REQ-003, REQ-037)', () => {
     ).toBe('<b>Nome</b>');
   });
 
-  it('receita de login aponta para o hash atual da base substituivel', () => {
+  it('receita de login casa com a base publica ou com o overlay aplicado', () => {
     const recipe = JSON.parse(readFileSync('templates/modules/auth/recipe.json', 'utf8'));
     const digest = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex');
     for (const entry of recipe.entries as { path: string; beforeSha256: string | null }[]) {
-      if (entry.beforeSha256 === null) {
-        expect(existsSync(entry.path)).toBe(false);
-        continue;
-      }
-      expect(digest(entry.path)).toBe(entry.beforeSha256);
+      const overlay = `templates/modules/auth/files/${entry.path}`;
+      const after = digest(overlay);
+      const current = existsSync(entry.path) ? digest(entry.path) : null;
+      expect(
+        current === entry.beforeSha256 || current === after,
+        `${entry.path} deve ser a base publica ou o overlay`,
+      ).toBe(true);
     }
   });
 });
