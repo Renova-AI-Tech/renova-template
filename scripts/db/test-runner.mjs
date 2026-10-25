@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 import { parseProjectConfig } from '../project/config.mjs';
 import { createTestDatabase, startMailpit, stopTestDatabase } from './local.mjs';
 import { buildMigrator, migrateLocalDatabase } from './migrate.mjs';
+import { hasCompiledApp } from './e2e-origin.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const [mode = 'integration', ...filters] = process.argv.slice(2);
@@ -32,6 +33,13 @@ try {
       maxBuffer: 1024 * 1024,
     });
   await buildMigrator(root);
+  if (mode === 'e2e' && !(await hasCompiledApp(root))) {
+    await promisify(execFile)('pnpm', ['build'], {
+      cwd: root,
+      timeout: 180_000,
+      maxBuffer: 1024 * 1024,
+    });
+  }
   handle = await createTestDatabase(root);
   if (requestedSignal) throw new Error('Validation interrupted');
   await migrateLocalDatabase(handle);

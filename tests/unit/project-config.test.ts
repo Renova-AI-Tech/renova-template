@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseProjectConfig } from '../../scripts/project/config.mjs';
 
@@ -82,5 +84,19 @@ describe('project configuration (REQ-002, REQ-003, REQ-037)', () => {
       parseProjectConfig({ ...valid, project: { ...valid.project, displayName: '<b>Nome</b>' } })
         .project.displayName,
     ).toBe('<b>Nome</b>');
+  });
+
+  it('receita de login casa com a base publica ou com o overlay aplicado', () => {
+    const recipe = JSON.parse(readFileSync('templates/modules/auth/recipe.json', 'utf8'));
+    const digest = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex');
+    for (const entry of recipe.entries as { path: string; beforeSha256: string | null }[]) {
+      const overlay = `templates/modules/auth/files/${entry.path}`;
+      const after = digest(overlay);
+      const current = existsSync(entry.path) ? digest(entry.path) : null;
+      expect(
+        current === entry.beforeSha256 || current === after,
+        `${entry.path} deve ser a base publica ou o overlay`,
+      ).toBe(true);
+    }
   });
 });

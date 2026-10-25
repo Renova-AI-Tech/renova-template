@@ -347,10 +347,10 @@ não declara frontend saudável como prova de fluxo autenticado ou entrega de em
 Readiness exige histórico exato: uma imagem antiga não é automaticamente compatível
 com schema novo. Rollback de imagem não reverte banco; mudança destrutiva precisa plano separado.
 
-GitHub Actions executa os jobs em Blacksmith. Labels configuradas:
-`blacksmith-2vcpu-ubuntu-2404` para checks rápidos e
-`blacksmith-4vcpu-ubuntu-2404` para integração/E2E/containers; medir no piloto antes
-de otimizar. A habilitação exige organização GitHub e acesso do App Blacksmith
+GitHub Actions executa um job `required` em Blacksmith
+(`blacksmith-2vcpu-ubuntu-2404`). Integração é sequencial e E2E usa 1 worker;
+4 vCPU ficava ocioso. Sem agregador nem job extra: o próprio `required` é o check
+de proteção e o alvo do `deploy:apply`. A habilitação exige organização GitHub e acesso do App Blacksmith
 ao novo repo; clone não replica esse vínculo e repositório pessoal não é suportado
 pelo serviço. `doctor` distingue local pronto de CI corporativo habilitado; acesso
 não verificável fica como pendência, nunca como sucesso presumido. Nenhum fallback
@@ -373,17 +373,18 @@ Actions e imagens da cadeia de build têm versões fixadas e atualização revis
 nem segredos de produção. Regras de forks/PRs não promovem código não confiável a
 jobs privilegiados. Permissões efetivas do App são verificadas na habilitação.
 
-CI dos projetos gerados roda PR e push na branch de publicação. Resultado final
-obrigatório verifica que todos os gates aplicáveis terminaram em sucesso. No início,
-executar todos os gates de código; otimização por paths só após provar a detecção
-de dependências. E2E essencial é bloqueante. Não usar `continue-on-error` em gate
-obrigatório. Workflow crítico não deve ser cancelado por um workflow secundário.
+CI dos projetos gerados é um job `required` que sempre reporta. Install e
+`check:quick` correm em todo evento; build/DB/E2E só em PR de código ou
+`workflow_dispatch`, depois de listar os arquivos da PR (falha fechada se a
+lista vier vazia, truncada ou a API falhar). E2E essencial é bloqueante e
+serve o `dist` no `vite preview` com a API no backend compilado. Não usar
+`continue-on-error` em gate obrigatório. Não criar segundo workflow. Workflow
+crítico não deve ser cancelado por um workflow secundário.
 
-Na base mantida pela Renova, o job `profiles` executa `pnpm test:profiles` e
-materializa os dois perfis em diretórios descartáveis, instalando seus lockfiles
-com `--frozen-lockfile` e executando `check:full`. No projeto gerado, CI verifica
-seu perfil escolhido com `quality` e `full`. O agregador exige a matriz no
-repositório mantenedor; aceita seu skip somente nos demais repositórios. Destino cloud não exige
+Na base mantida pela Renova, o mesmo job pode executar `pnpm test:profiles`
+(materializa os dois perfis, lockfile congelado e `check:full`) quando a PR toca
+receita/geração ou via `workflow_dispatch`. Push na main não repete a matriz.
+No projeto gerado esse passo não corre: o job `required` valida o perfil escolhido. Destino cloud não exige
 credentials em testes locais; adaptador simulado só prova lógica do plano. Pilotos
 Railway comprovam o provedor em etapa autorizada separada. GitHub rulesets e
 CODEOWNERS precisam de disponibilidade e configuração reais; se o plano não
