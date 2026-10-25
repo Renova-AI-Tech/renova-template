@@ -10,4 +10,4 @@ Humano (ou revisor em contexto fresco) revisa **evidência**. Autor ≠ revisor.
 6. Frente **Harness**: não desliga regra, não sobe timeout no escuro.
 7. Se o projeto ativou CODEOWNERS, conferir responsáveis reais nas áreas protegidas; o template só inclui exemplos comentados.
 
-Não mergear com “integração fica com o CI”. Não aceitar screenshot no lugar do teste dono. Não retryar flake — isole o teste.
+Não mergear com “integração fica com o CI”. Não aceitar screenshot no lugar do teste dono. Não retryar flake — isole o teste. Recuse PR que cria workflow/job/suíte nova sem pedido, ou que empurrou WIP só para disparar o Actions.

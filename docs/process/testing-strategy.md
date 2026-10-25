@@ -7,7 +7,7 @@ Pastas (layout de mercado):
 | `tests/unit` | o que *deve* acontecer (exemplo) | sim |
 | `tests/property` | o que *nunca* pode quebrar (`fast-check`, seed) | sim |
 | `tests/integration` | I/O isolado | só `check:full` |
-| `tests/e2e` | jornada real | `check:full`; CI bloqueante em Blacksmith |
+| `tests/e2e` | jornada real | `check:full`; passo do job `ci` em PR de código |
 
 E2E > propriedade > exemplo. Mock que o agente escreveu não é ground truth.
 

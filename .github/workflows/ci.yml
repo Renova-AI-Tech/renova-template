@@ -5,6 +5,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,11 +16,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
+  ci:
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    timeout-minutes: 15
-    outputs:
-      skip_full: ${{ steps.paths.outputs.skip_full }}
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -37,29 +36,18 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:quick
       - run: pnpm build
-
-  full:
-    needs: quality
-    # PR de código. Na main o full da PR já rodou; alteração só de docs não precisa de DB/E2E.
-    if: github.event_name == 'pull_request' && needs.quality.outputs.skip_full != 'true'
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm build
-      - run: pnpm test:containers
-      - run: pnpm test:integration
-      - run: pnpm test:e2e
+      - name: Instalar Chromium
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && steps.paths.outputs.skip_full != 'true') || (github.repository == 'Renova-AI-Tech/renova-template' && steps.paths.outputs.run_profiles == 'true')
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Containers, integração e navegador
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && steps.paths.outputs.skip_full != 'true')
+        run: |
+          pnpm test:containers
+          pnpm test:integration
+          pnpm test:e2e
+      - name: Matriz de perfis
+        if: github.repository == 'Renova-AI-Tech/renova-template' && (github.event_name == 'workflow_dispatch' || steps.paths.outputs.run_profiles == 'true')
+        run: pnpm test:profiles
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with:
@@ -68,65 +56,3 @@ jobs:
             test-results/
             playwright-report/
           retention-days: 7
-
-  profiles:
-    # Só o template, só PR de código. Integração sequencial e E2E com 1 worker.
-    if: github.repository == 'Renova-AI-Tech/renova-template' && github.event_name == 'pull_request' && needs.quality.outputs.skip_full != 'true'
-    needs: quality
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm test:profiles
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: failure()
-        with:
-          name: profiles-browser-failure
-          path: test-results/profiles/
-          retention-days: 7
-
-  required:
-    if: always()
-    needs: [quality, full, profiles]
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    timeout-minutes: 2
-    steps:
-      - name: Exigir sucesso de todos os gates
-        env:
-          QUALITY_RESULT: ${{ needs.quality.result }}
-          FULL_RESULT: ${{ needs.full.result }}
-          PROFILES_RESULT: ${{ needs.profiles.result }}
-          SOURCE_REPOSITORY: ${{ github.repository }}
-          EVENT_NAME: ${{ github.event_name }}
-          SKIP_FULL: ${{ needs.quality.outputs.skip_full }}
-        run: |
-          set -e
-          test "$QUALITY_RESULT" = success
-          if [ "$FULL_RESULT" = success ]; then
-            :
-          elif [ "$FULL_RESULT" = skipped ]; then
-            test "$EVENT_NAME" = push -o "$SKIP_FULL" = true
-          else
-            exit 1
-          fi
-          if [ "$SOURCE_REPOSITORY" = "Renova-AI-Tech/renova-template" ]; then
-            if [ "$PROFILES_RESULT" = success ]; then
-              :
-            elif [ "$PROFILES_RESULT" = skipped ]; then
-              test "$EVENT_NAME" = push -o "$SKIP_FULL" = true
-            else
-              exit 1
-            fi
-          else
-            test "$PROFILES_RESULT" = skipped
-          fi

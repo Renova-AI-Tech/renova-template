@@ -1,222 +1,55 @@
-import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
 const workflow = parse(readFileSync('.github/workflows/ci.yml', 'utf8'));
 
+function stepRuns(job: { steps: { run?: string }[] }) {
+  return job.steps.map((step) => step.run).filter(Boolean);
+}
+
 describe('contrato CI Blacksmith (REQ-031, REQ-039)', () => {
-  it('recusa CI incompleto mesmo com workflow secundario verde', () => {
-    const command = workflow.jobs.required.steps[0].run;
-    for (const result of ['failure', 'cancelled', 'skipped', 'pending', '']) {
-      for (const env of [
-        {
-          QUALITY_RESULT: result,
-          FULL_RESULT: 'success',
-          PROFILES_RESULT: 'success',
-          SOURCE_REPOSITORY: 'Renova-AI-Tech/renova-template',
-        },
-        {
-          QUALITY_RESULT: 'success',
-          FULL_RESULT: result,
-          PROFILES_RESULT: 'success',
-          SOURCE_REPOSITORY: 'Renova-AI-Tech/renova-template',
-        },
-        {
-          QUALITY_RESULT: 'success',
-          FULL_RESULT: 'success',
-          PROFILES_RESULT: result,
-          SOURCE_REPOSITORY: 'Renova-AI-Tech/renova-template',
-        },
-      ]) {
-        expect(spawnSync('bash', ['-c', command], { env }).status).toBe(1);
-      }
+  it('tem um unico job que sempre roda em Blacksmith sem fallback', () => {
+    expect(Object.keys(workflow.jobs)).toEqual(['ci']);
+    expect(workflow.jobs.ci.if).toBeUndefined();
+    expect(workflow.jobs.ci['runs-on']).toBe('blacksmith-2vcpu-ubuntu-2404');
+    expect(workflow.jobs.ci['continue-on-error']).toBeUndefined();
+    expect(workflow.jobs.ci['timeout-minutes']).toBe(25);
+    for (const step of workflow.jobs.ci.steps as { 'continue-on-error'?: boolean }[]) {
+      expect(step['continue-on-error']).toBeUndefined();
     }
-    expect(
-      spawnSync('bash', ['-c', command], {
-        env: {
-          QUALITY_RESULT: 'success',
-          FULL_RESULT: 'success',
-          PROFILES_RESULT: 'success',
-          SOURCE_REPOSITORY: 'Renova-AI-Tech/renova-template',
-        },
-      }).status,
-    ).toBe(0);
   });
 
-  it('exige matriz no template e valida apenas o perfil escolhido em clones', () => {
-    expect(workflow.jobs.profiles.if).toBe(
-      "github.repository == 'Renova-AI-Tech/renova-template' && github.event_name == 'pull_request' && needs.quality.outputs.skip_full != 'true'",
-    );
-    const command = workflow.jobs.required.steps[0].run;
-    for (const profile of ['failure', 'cancelled', 'pending', 'success', '']) {
-      expect(
-        spawnSync('bash', ['-c', command], {
-          env: {
-            QUALITY_RESULT: 'success',
-            FULL_RESULT: 'success',
-            PROFILES_RESULT: profile,
-            SOURCE_REPOSITORY: 'Renova-AI-Tech/meu-produto',
-          },
-        }).status,
-      ).toBe(1);
-    }
-    expect(
-      spawnSync('bash', ['-c', command], {
-        env: {
-          QUALITY_RESULT: 'success',
-          FULL_RESULT: 'success',
-          PROFILES_RESULT: 'skipped',
-          SOURCE_REPOSITORY: 'Renova-AI-Tech/meu-produto',
-        },
-      }).status,
-    ).toBe(0);
-    expect(workflow.jobs.profiles.steps.map((step: { run?: string }) => step.run)).toContain(
-      'pnpm test:profiles',
-    );
-  });
-
-  it('executa todos os jobs em Blacksmith sem fallback', () => {
-    expect(Object.keys(workflow.jobs)).toEqual(['quality', 'full', 'profiles', 'required']);
-    for (const job of Object.values(workflow.jobs) as Record<string, unknown>[]) {
-      expect(job['runs-on']).toMatch(/^blacksmith-[24]vcpu-ubuntu-2404$/);
-      expect(job['continue-on-error']).toBeUndefined();
-    }
-    expect(workflow.jobs.full['runs-on']).toBe('blacksmith-2vcpu-ubuntu-2404');
-    expect(workflow.jobs.profiles['runs-on']).toBe('blacksmith-2vcpu-ubuntu-2404');
-    expect(workflow.jobs.quality['runs-on']).toBe('blacksmith-2vcpu-ubuntu-2404');
-    expect(workflow.jobs.required['runs-on']).toBe('blacksmith-2vcpu-ubuntu-2404');
-  });
-
-  it('cobre PR push e exige agregador mesmo em falha ou skip', () => {
+  it('cobre PR, push na main e dispatch manual sem paths-ignore', () => {
     expect(workflow.on.pull_request.types).toContain('synchronize');
     expect(workflow.on.push.branches).toEqual(['main']);
+    expect(workflow.on.workflow_dispatch).toBeDefined();
     expect(workflow.on.pull_request['paths-ignore']).toBeUndefined();
     expect(workflow.on.push['paths-ignore']).toBeUndefined();
-    expect(workflow.jobs.required.if).toBe('always()');
-    expect(workflow.jobs.required.needs).toEqual(['quality', 'full', 'profiles']);
-    expect(workflow.jobs.quality.if).toBeUndefined();
-    expect(workflow.jobs.full.if).toBe(
-      "github.event_name == 'pull_request' && needs.quality.outputs.skip_full != 'true'",
-    );
-    expect(workflow.jobs.quality.outputs.skip_full).toBe(`\${{ steps.paths.outputs.skip_full }}`);
-    expect(workflow.jobs.quality.steps.map((step: { run?: string }) => step.run)).toContain(
+    expect(workflow.jobs.ci.steps.map((step: { run?: string }) => step.run)).toContain(
       'node scripts/ci/skip-full.mjs',
     );
   });
 
-  it('aceita full skipped so na main ou em PR so de docs', () => {
-    const command = workflow.jobs.required.steps[0].run;
-    const clone = {
-      QUALITY_RESULT: 'success',
-      PROFILES_RESULT: 'skipped',
-      SOURCE_REPOSITORY: 'Renova-AI-Tech/meu-produto',
-    };
-    expect(
-      spawnSync('bash', ['-c', command], {
-        env: { ...clone, FULL_RESULT: 'skipped', EVENT_NAME: 'push', SKIP_FULL: 'false' },
-      }).status,
-    ).toBe(0);
-    expect(
-      spawnSync('bash', ['-c', command], {
-        env: {
-          ...clone,
-          FULL_RESULT: 'skipped',
-          EVENT_NAME: 'pull_request',
-          SKIP_FULL: 'true',
-        },
-      }).status,
-    ).toBe(0);
-    expect(
-      spawnSync('bash', ['-c', command], {
-        env: { ...clone, FULL_RESULT: 'success', EVENT_NAME: 'push', SKIP_FULL: 'false' },
-      }).status,
-    ).toBe(0);
-    expect(
-      spawnSync('bash', ['-c', command], {
-        env: {
-          ...clone,
-          FULL_RESULT: 'skipped',
-          EVENT_NAME: 'pull_request',
-          SKIP_FULL: 'false',
-        },
-      }).status,
-    ).toBe(1);
-    expect(
-      spawnSync('bash', ['-c', command], {
-        env: {
-          QUALITY_RESULT: 'failure',
-          FULL_RESULT: 'skipped',
-          PROFILES_RESULT: 'skipped',
-          SOURCE_REPOSITORY: 'Renova-AI-Tech/meu-produto',
-          EVENT_NAME: 'pull_request',
-          SKIP_FULL: 'true',
-        },
-      }).status,
-    ).toBe(1);
-  });
-
-  it('aceita profiles skipped so na main ou em PR so de docs do template', () => {
-    const command = workflow.jobs.required.steps[0].run;
-    const template = {
-      QUALITY_RESULT: 'success',
-      SOURCE_REPOSITORY: 'Renova-AI-Tech/renova-template',
-    };
-    expect(
-      spawnSync('bash', ['-c', command], {
-        env: {
-          ...template,
-          FULL_RESULT: 'skipped',
-          PROFILES_RESULT: 'skipped',
-          EVENT_NAME: 'push',
-          SKIP_FULL: 'false',
-        },
-      }).status,
-    ).toBe(0);
-    expect(
-      spawnSync('bash', ['-c', command], {
-        env: {
-          ...template,
-          FULL_RESULT: 'skipped',
-          PROFILES_RESULT: 'skipped',
-          EVENT_NAME: 'pull_request',
-          SKIP_FULL: 'true',
-        },
-      }).status,
-    ).toBe(0);
-    expect(
-      spawnSync('bash', ['-c', command], {
-        env: {
-          ...template,
-          FULL_RESULT: 'success',
-          PROFILES_RESULT: 'skipped',
-          EVENT_NAME: 'pull_request',
-          SKIP_FULL: 'false',
-        },
-      }).status,
-    ).toBe(1);
-    expect(
-      spawnSync('bash', ['-c', command], {
-        env: {
-          ...template,
-          FULL_RESULT: 'success',
-          PROFILES_RESULT: 'success',
-          EVENT_NAME: 'pull_request',
-          SKIP_FULL: 'false',
-        },
-      }).status,
-    ).toBe(0);
-  });
-
-  it('executa banco e navegador como gates bloqueantes', () => {
-    const commands = workflow.jobs.full.steps
-      .map((step: { run?: string }) => step.run)
-      .filter(Boolean);
-    expect(commands).toContain('pnpm test:integration');
-    expect(commands).toContain('pnpm test:e2e');
-    expect(commands).toContain('pnpm exec playwright install --with-deps chromium');
+  it('instala, confere e constroi uma vez; DB e navegador so em PR de codigo ou dispatch', () => {
+    const commands = stepRuns(workflow.jobs.ci);
     expect(commands).toContain('pnpm install --frozen-lockfile');
+    expect(commands).toContain('pnpm check:quick');
     expect(commands).toContain('pnpm build');
+    expect(commands.filter((command) => command === 'pnpm build')).toHaveLength(1);
+    expect(commands.filter((command) => command === 'pnpm install --frozen-lockfile')).toHaveLength(
+      1,
+    );
+    const tests = workflow.jobs.ci.steps.find(
+      (step: { name?: string }) => step.name === 'Containers, integração e navegador',
+    );
+    expect(tests.if).toBe(
+      "github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && steps.paths.outputs.skip_full != 'true')",
+    );
+    expect(tests.run).toContain('pnpm test:containers');
+    expect(tests.run).toContain('pnpm test:integration');
+    expect(tests.run).toContain('pnpm test:e2e');
+    expect(commands).toContain('pnpm exec playwright install --with-deps chromium');
     expect(readFileSync('playwright.config.ts', 'utf8')).toContain(
       "command: 'node apps/backend/dist/index.js'",
     );
@@ -224,17 +57,26 @@ describe('contrato CI Blacksmith (REQ-031, REQ-039)', () => {
     expect(readFileSync('scripts/check-quick', 'utf8')).toContain('GIT_CONFIG_GLOBAL=/dev/null');
   });
 
+  it('matriz de perfis so no template, em path de geracao ou dispatch', () => {
+    const profiles = workflow.jobs.ci.steps.find(
+      (step: { name?: string }) => step.name === 'Matriz de perfis',
+    );
+    expect(profiles.run).toBe('pnpm test:profiles');
+    expect(profiles.if).toBe(
+      "github.repository == 'Renova-AI-Tech/renova-template' && (github.event_name == 'workflow_dispatch' || steps.paths.outputs.run_profiles == 'true')",
+    );
+  });
+
   it('fixa actions e limita permissoes sem credenciais de publicacao', () => {
     expect(workflow.permissions).toEqual({ contents: 'read', 'pull-requests': 'read' });
-    for (const job of Object.values(workflow.jobs) as {
-      steps: { uses?: string; with?: Record<string, unknown> }[];
+    for (const step of workflow.jobs.ci.steps as {
+      uses?: string;
+      with?: Record<string, unknown>;
     }[]) {
-      for (const step of job.steps) {
-        if (step.uses) expect(step.uses).toMatch(/@[a-f0-9]{40}$/);
-        if (step.uses?.startsWith('actions/checkout@')) {
-          expect(step.with?.['persist-credentials']).toBe(false);
-          expect(step.with?.ref).toBe(`\${{ github.event.pull_request.head.sha || github.sha }}`);
-        }
+      if (step.uses) expect(step.uses).toMatch(/@[a-f0-9]{40}$/);
+      if (step.uses?.startsWith('actions/checkout@')) {
+        expect(step.with?.['persist-credentials']).toBe(false);
+        expect(step.with?.ref).toBe(`\${{ github.event.pull_request.head.sha || github.sha }}`);
       }
     }
     expect(readFileSync('.github/workflows/ci.yml', 'utf8')).not.toContain('secrets.');

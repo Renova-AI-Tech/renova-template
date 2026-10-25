@@ -3,8 +3,31 @@ import { pathToFileURL } from 'node:url';
 
 const docsPrefixes = ['docs/', '.agents/'];
 const docsFiles = new Set(['LICENSE', 'LICENSE.txt']);
+const generatorPrefixes = [
+  'templates/',
+  'scripts/project/',
+  'scripts/db/',
+  'scripts/ci/',
+  '.github/workflows/',
+];
+const generatorFiles = new Set([
+  'package.json',
+  'pnpm-lock.yaml',
+  'pnpm-workspace.yaml',
+  'playwright.config.ts',
+  'vitest.loop.config.ts',
+  'vitest.integration.config.ts',
+  'vitest.harness.config.ts',
+  'scripts/check-quick',
+  'scripts/check-full',
+  'scripts/init.sh',
+  '.nvmrc',
+  'docker-compose.yml',
+  'renova.project.json',
+]);
+const templateRepository = 'Renova-AI-Tech/renova-template';
 
-export function isDocsOnlyPath(path) {
+function normalizePath(path) {
   const normalized = String(path ?? '')
     .replaceAll('\\', '/')
     .replace(/^\.\//, '');
@@ -13,11 +36,24 @@ export function isDocsOnlyPath(path) {
     normalized.startsWith('/') ||
     normalized.split('/').some((part) => part === '.' || part === '..')
   ) {
-    return false;
+    return '';
   }
+  return normalized;
+}
+
+export function isDocsOnlyPath(path) {
+  const normalized = normalizePath(path);
+  if (!normalized) return false;
   if (docsFiles.has(normalized)) return true;
   if (docsPrefixes.some((prefix) => normalized.startsWith(prefix))) return true;
   return normalized.endsWith('.md');
+}
+
+export function isGeneratorPath(path) {
+  const normalized = normalizePath(path);
+  if (!normalized) return false;
+  if (generatorFiles.has(normalized)) return true;
+  return generatorPrefixes.some((prefix) => normalized.startsWith(prefix));
 }
 
 export function shouldSkipFull(paths, truncated = false) {
@@ -25,11 +61,18 @@ export function shouldSkipFull(paths, truncated = false) {
   return paths.every((path) => typeof path === 'string' && isDocsOnlyPath(path));
 }
 
-function writeOutput(skip) {
-  const line = `skip_full=${skip ? 'true' : 'false'}\n`;
+export function shouldRunProfiles(paths, truncated = false) {
+  if (truncated) return true;
+  if (!Array.isArray(paths) || paths.length === 0) return false;
+  if (paths.every((path) => typeof path === 'string' && isDocsOnlyPath(path))) return false;
+  return paths.some((path) => typeof path === 'string' && isGeneratorPath(path));
+}
+
+function writeOutput(skipFull, runProfiles) {
+  const lines = `skip_full=${skipFull ? 'true' : 'false'}\nrun_profiles=${runProfiles ? 'true' : 'false'}\n`;
   const output = process.env.GITHUB_OUTPUT;
-  if (output) appendFileSync(output, line);
-  process.stdout.write(line);
+  if (output) appendFileSync(output, lines);
+  process.stdout.write(lines);
 }
 
 async function changedPullFiles(repository, number, token) {
@@ -56,22 +99,38 @@ async function changedPullFiles(repository, number, token) {
   return { truncated: true, files };
 }
 
-export async function decideSkipFull(env = process.env) {
-  if (env.GITHUB_EVENT_NAME !== 'pull_request') return false;
+export async function classifyCi(env = process.env) {
+  const template = env.GITHUB_REPOSITORY === templateRepository;
+  if (env.GITHUB_EVENT_NAME === 'workflow_dispatch') {
+    return { skipFull: false, runProfiles: template };
+  }
+  if (env.GITHUB_EVENT_NAME !== 'pull_request') {
+    return { skipFull: false, runProfiles: false };
+  }
   const repository = env.GITHUB_REPOSITORY ?? '';
   const number = env.PR_NUMBER ?? '';
   const token = env.GITHUB_TOKEN ?? '';
-  if (!repository || !/^[1-9]\d*$/.test(number) || !token) return false;
+  if (!repository || !/^[1-9]\d*$/.test(number) || !token) {
+    return { skipFull: false, runProfiles: template };
+  }
   try {
     const changed = await changedPullFiles(repository, number, token);
-    return shouldSkipFull(changed.files, changed.truncated);
+    return {
+      skipFull: shouldSkipFull(changed.files, changed.truncated),
+      runProfiles: template && shouldRunProfiles(changed.files, changed.truncated),
+    };
   } catch {
-    return false;
+    return { skipFull: false, runProfiles: template };
   }
 }
 
+export async function decideSkipFull(env = process.env) {
+  return (await classifyCi(env)).skipFull;
+}
+
 async function main() {
-  writeOutput(await decideSkipFull());
+  const result = await classifyCi();
+  writeOutput(result.skipFull, result.runProfiles);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {

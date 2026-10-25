@@ -2,6 +2,22 @@
 
 Cada sessão longa acrescenta um bloco no topo. Não apague histórico.
 
+## 2026-10-25 — um job `ci` e regras de agente
+
+- Follow-up do dono na PR #6: 3+ jobs era excesso; agentes nos clones precisam
+  de regra explícita para não inflar o CI.
+- Colapso: `quality` + `full` + `profiles` + `required` → um job `ci` em 2 vCPU.
+  Install/quick/build uma vez. DB/E2E como passos (PR de código ou dispatch).
+  Sem agregador e sem runner GitHub. Proteção e `deploy:apply` passam a exigir
+  **`ci`**, não `required`.
+- Matriz só no template, se a PR toca receita/geração (`templates/`,
+  `scripts/project/`, lockfile, workflow, runner) ou via `workflow_dispatch`.
+  Não corre em PR de produto nem no push da main. Falha da matriz falha o `ci`.
+- AGENTS.md, skill `develop-feature`, task-recipe, PR template, frontend/harness
+  AGENTS e operations: checks locais antes do push; não criar job/workflow/suíte;
+  não empurrar WIP para o Actions; estender testes existentes.
+- sinequa-portal-v2 #44 ainda não tinha esse follow-up no momento desta nota.
+
 ## 2026-10-25 — custo do CI Blacksmith no template
 
 - Objetivo: o template herdar CI barato sem perder gate. Um PR contra `main`,

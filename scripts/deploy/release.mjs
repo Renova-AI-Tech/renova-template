@@ -154,7 +154,7 @@ async function verifyCi(repo, sha, runner, root) {
       `repos/${repo}/actions/runs/${latest.databaseId}/jobs?filter=latest&per_page=100`,
     ]),
   );
-  const required = jobs.jobs?.filter((job) => job.name === 'required');
+  const required = jobs.jobs?.filter((job) => job.name === 'ci');
   if (
     !Number.isSafeInteger(jobs.total_count) ||
     jobs.total_count > 100 ||
@@ -163,7 +163,7 @@ async function verifyCi(repo, sha, runner, root) {
     required[0].status !== 'completed' ||
     required[0].conclusion !== 'success'
   ) {
-    refuse('job required do CI não concluiu com sucesso para este SHA');
+    refuse('job ci do CI não concluiu com sucesso para este SHA');
   }
   return latest.databaseId;
 }

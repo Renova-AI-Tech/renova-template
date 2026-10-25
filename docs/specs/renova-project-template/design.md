@@ -327,7 +327,7 @@ hash do plano e validade de 30 minutos. A saída mostra IDs e ações sanitizada
 
 `deploy:apply --confirm-project` revalida destino, hash, validade, HEAD e árvore
 limpa, incluindo arquivos não ignorados. Exige sucesso do workflow `CI` mais
-recente e do job `required` para o SHA exato. Aplica o plano nativo salvo e envia
+recente e do job `ci` para o SHA exato. Aplica o plano nativo salvo e envia
 um `git archive` desse commit por `railway up`; não publica WIP nem seleciona um
 digest de imagem. Configuração, upload e verificação de saúde são etapas distintas.
 Autodeploy que contorne esse gate não deve ser conectado. Resultado desconhecido
@@ -347,10 +347,10 @@ não declara frontend saudável como prova de fluxo autenticado ou entrega de em
 Readiness exige histórico exato: uma imagem antiga não é automaticamente compatível
 com schema novo. Rollback de imagem não reverte banco; mudança destrutiva precisa plano separado.
 
-GitHub Actions executa os jobs em Blacksmith. Labels configuradas:
-`blacksmith-2vcpu-ubuntu-2404` para quality, full, profiles e o agregador.
-Integração é sequencial e E2E usa 1 worker; 4 vCPU ficava ocioso no trecho
-mais longo. Medir de novo só se o relógio do `full` ou `profiles` dobrar. A habilitação exige organização GitHub e acesso do App Blacksmith
+GitHub Actions executa um job `ci` em Blacksmith
+(`blacksmith-2vcpu-ubuntu-2404`). Integração é sequencial e E2E usa 1 worker;
+4 vCPU ficava ocioso. Sem agregador nem job extra: o próprio `ci` é o check
+de proteção e o alvo do `deploy:apply`. A habilitação exige organização GitHub e acesso do App Blacksmith
 ao novo repo; clone não replica esse vínculo e repositório pessoal não é suportado
 pelo serviço. `doctor` distingue local pronto de CI corporativo habilitado; acesso
 não verificável fica como pendência, nunca como sucesso presumido. Nenhum fallback
@@ -373,22 +373,17 @@ Actions e imagens da cadeia de build têm versões fixadas e atualização revis
 nem segredos de produção. Regras de forks/PRs não promovem código não confiável a
 jobs privilegiados. Permissões efetivas do App são verificadas na habilitação.
 
-CI dos projetos gerados roda PR e push na branch de publicação. Resultado final
-obrigatório verifica que todos os gates aplicáveis terminaram em sucesso. Gates
-de código (DB/E2E/matriz) correm em PR de código; PR só de docs e push na main
-pulam esses jobs depois de listar os arquivos da PR, com falha fechada se a
-lista vier vazia, truncada ou a API falhar. Não filtrar por “parece só geração”
-sem prova de dependência. E2E essencial é bloqueante. Não usar
-`continue-on-error` em gate obrigatório. Workflow crítico não deve ser
-cancelado por um workflow secundário.
+CI dos projetos gerados é um job `ci` que sempre reporta. Install, `check:quick`
+e build correm em todo evento; DB/E2E só em PR de código ou `workflow_dispatch`,
+depois de listar os arquivos da PR (falha fechada se a lista vier vazia,
+truncada ou a API falhar). E2E essencial é bloqueante. Não usar
+`continue-on-error` em gate obrigatório. Não criar segundo workflow. Workflow
+crítico não deve ser cancelado por um workflow secundário.
 
-Na base mantida pela Renova, o job `profiles` executa `pnpm test:profiles` e
-materializa os dois perfis em diretórios descartáveis, instalando seus lockfiles
-com `--frozen-lockfile` e executando `check:full`. Corre em 2 vCPU só em PR de
-código do template; push na main e PR só de docs pulam a matriz, como o `full`.
-No projeto gerado, CI verifica seu perfil escolhido com `quality` e `full`. O
-agregador exige a matriz no repositório mantenedor em PR de código; aceita skip
-na main/docs-only e nos demais repositórios. Destino cloud não exige
+Na base mantida pela Renova, o mesmo job pode executar `pnpm test:profiles`
+(materializa os dois perfis, lockfile congelado e `check:full`) quando a PR toca
+receita/geração ou via `workflow_dispatch`. Push na main não repete a matriz.
+No projeto gerado esse passo não corre: o job `ci` valida o perfil escolhido. Destino cloud não exige
 credentials em testes locais; adaptador simulado só prova lógica do plano. Pilotos
 Railway comprovam o provedor em etapa autorizada separada. GitHub rulesets e
 CODEOWNERS precisam de disponibilidade e configuração reais; se o plano não
