@@ -30,6 +30,11 @@ pnpm dev                 # Vite + Fastify; porta exibida no terminal
 
 Aliases: `ci:quick` → `check:quick`. Sem npm/yarn. Sem `--no-verify`.
 
+CI remoto (Blacksmith): um único workflow. Cada `synchronize` dispara `quality`;
+`full` e, no template, `profiles` só em PR de código. Push na `main` e PR só de
+docs/skills não repetem DB/E2E. O check de proteção é `required`. Não acrescente
+workflow de agente nem empurre WIP só para ver o CI.
+
 ## Produto e referência
 
 `/` começa com um guia substituível: implemente o produto em `apps/frontend/src/pages/HomePage.tsx`.

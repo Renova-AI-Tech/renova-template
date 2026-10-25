@@ -45,7 +45,9 @@ describe('contrato CI Blacksmith (REQ-031, REQ-039)', () => {
   });
 
   it('exige matriz no template e valida apenas o perfil escolhido em clones', () => {
-    expect(workflow.jobs.profiles.if).toBe("github.repository == 'Renova-AI-Tech/renova-template'");
+    expect(workflow.jobs.profiles.if).toBe(
+      "github.repository == 'Renova-AI-Tech/renova-template' && github.event_name == 'pull_request' && needs.quality.outputs.skip_full != 'true'",
+    );
     const command = workflow.jobs.required.steps[0].run;
     for (const profile of ['failure', 'cancelled', 'pending', 'success', '']) {
       expect(
@@ -80,14 +82,130 @@ describe('contrato CI Blacksmith (REQ-031, REQ-039)', () => {
       expect(job['runs-on']).toMatch(/^blacksmith-[24]vcpu-ubuntu-2404$/);
       expect(job['continue-on-error']).toBeUndefined();
     }
+    expect(workflow.jobs.full['runs-on']).toBe('blacksmith-2vcpu-ubuntu-2404');
+    expect(workflow.jobs.profiles['runs-on']).toBe('blacksmith-2vcpu-ubuntu-2404');
+    expect(workflow.jobs.quality['runs-on']).toBe('blacksmith-2vcpu-ubuntu-2404');
+    expect(workflow.jobs.required['runs-on']).toBe('blacksmith-2vcpu-ubuntu-2404');
   });
 
   it('cobre PR push e exige agregador mesmo em falha ou skip', () => {
     expect(workflow.on.pull_request.types).toContain('synchronize');
     expect(workflow.on.push.branches).toEqual(['main']);
+    expect(workflow.on.pull_request['paths-ignore']).toBeUndefined();
+    expect(workflow.on.push['paths-ignore']).toBeUndefined();
     expect(workflow.jobs.required.if).toBe('always()');
     expect(workflow.jobs.required.needs).toEqual(['quality', 'full', 'profiles']);
     expect(workflow.jobs.quality.if).toBeUndefined();
+    expect(workflow.jobs.full.if).toBe(
+      "github.event_name == 'pull_request' && needs.quality.outputs.skip_full != 'true'",
+    );
+    expect(workflow.jobs.quality.outputs.skip_full).toBe(`\${{ steps.paths.outputs.skip_full }}`);
+    expect(workflow.jobs.quality.steps.map((step: { run?: string }) => step.run)).toContain(
+      'node scripts/ci/skip-full.mjs',
+    );
+  });
+
+  it('aceita full skipped so na main ou em PR so de docs', () => {
+    const command = workflow.jobs.required.steps[0].run;
+    const clone = {
+      QUALITY_RESULT: 'success',
+      PROFILES_RESULT: 'skipped',
+      SOURCE_REPOSITORY: 'Renova-AI-Tech/meu-produto',
+    };
+    expect(
+      spawnSync('bash', ['-c', command], {
+        env: { ...clone, FULL_RESULT: 'skipped', EVENT_NAME: 'push', SKIP_FULL: 'false' },
+      }).status,
+    ).toBe(0);
+    expect(
+      spawnSync('bash', ['-c', command], {
+        env: {
+          ...clone,
+          FULL_RESULT: 'skipped',
+          EVENT_NAME: 'pull_request',
+          SKIP_FULL: 'true',
+        },
+      }).status,
+    ).toBe(0);
+    expect(
+      spawnSync('bash', ['-c', command], {
+        env: { ...clone, FULL_RESULT: 'success', EVENT_NAME: 'push', SKIP_FULL: 'false' },
+      }).status,
+    ).toBe(0);
+    expect(
+      spawnSync('bash', ['-c', command], {
+        env: {
+          ...clone,
+          FULL_RESULT: 'skipped',
+          EVENT_NAME: 'pull_request',
+          SKIP_FULL: 'false',
+        },
+      }).status,
+    ).toBe(1);
+    expect(
+      spawnSync('bash', ['-c', command], {
+        env: {
+          QUALITY_RESULT: 'failure',
+          FULL_RESULT: 'skipped',
+          PROFILES_RESULT: 'skipped',
+          SOURCE_REPOSITORY: 'Renova-AI-Tech/meu-produto',
+          EVENT_NAME: 'pull_request',
+          SKIP_FULL: 'true',
+        },
+      }).status,
+    ).toBe(1);
+  });
+
+  it('aceita profiles skipped so na main ou em PR so de docs do template', () => {
+    const command = workflow.jobs.required.steps[0].run;
+    const template = {
+      QUALITY_RESULT: 'success',
+      SOURCE_REPOSITORY: 'Renova-AI-Tech/renova-template',
+    };
+    expect(
+      spawnSync('bash', ['-c', command], {
+        env: {
+          ...template,
+          FULL_RESULT: 'skipped',
+          PROFILES_RESULT: 'skipped',
+          EVENT_NAME: 'push',
+          SKIP_FULL: 'false',
+        },
+      }).status,
+    ).toBe(0);
+    expect(
+      spawnSync('bash', ['-c', command], {
+        env: {
+          ...template,
+          FULL_RESULT: 'skipped',
+          PROFILES_RESULT: 'skipped',
+          EVENT_NAME: 'pull_request',
+          SKIP_FULL: 'true',
+        },
+      }).status,
+    ).toBe(0);
+    expect(
+      spawnSync('bash', ['-c', command], {
+        env: {
+          ...template,
+          FULL_RESULT: 'success',
+          PROFILES_RESULT: 'skipped',
+          EVENT_NAME: 'pull_request',
+          SKIP_FULL: 'false',
+        },
+      }).status,
+    ).toBe(1);
+    expect(
+      spawnSync('bash', ['-c', command], {
+        env: {
+          ...template,
+          FULL_RESULT: 'success',
+          PROFILES_RESULT: 'success',
+          EVENT_NAME: 'pull_request',
+          SKIP_FULL: 'false',
+        },
+      }).status,
+    ).toBe(0);
   });
 
   it('executa banco e navegador como gates bloqueantes', () => {
@@ -98,10 +216,16 @@ describe('contrato CI Blacksmith (REQ-031, REQ-039)', () => {
     expect(commands).toContain('pnpm test:e2e');
     expect(commands).toContain('pnpm exec playwright install --with-deps chromium');
     expect(commands).toContain('pnpm install --frozen-lockfile');
+    expect(commands).toContain('pnpm build');
+    expect(readFileSync('playwright.config.ts', 'utf8')).toContain(
+      "command: 'node apps/backend/dist/index.js'",
+    );
+    expect(readFileSync('playwright.config.ts', 'utf8')).not.toContain("command: 'pnpm dev'");
+    expect(readFileSync('scripts/check-quick', 'utf8')).toContain('GIT_CONFIG_GLOBAL=/dev/null');
   });
 
   it('fixa actions e limita permissoes sem credenciais de publicacao', () => {
-    expect(workflow.permissions).toEqual({ contents: 'read' });
+    expect(workflow.permissions).toEqual({ contents: 'read', 'pull-requests': 'read' });
     for (const job of Object.values(workflow.jobs) as {
       steps: { uses?: string; with?: Record<string, unknown> }[];
     }[]) {

@@ -153,6 +153,30 @@ describe('production frontend', () => {
     });
   });
 
+  it('serve o build na origem unica do E2E sem virar producao', async () => {
+    const app = await createApp(
+      parseEnv({
+        ...auth,
+        NODE_ENV: 'test',
+        HOST: '127.0.0.1',
+        PORT: '43124',
+        FRONTEND_URL: 'http://127.0.0.1:43124',
+        SMTP_HOST: '127.0.0.1',
+        SMTP_PORT: '1025',
+        MAILPIT_PORT: '8025',
+        DATABASE_URL:
+          'postgresql://renova_runtime:synthetic-only-password@127.0.0.1:5432/renova_test',
+      }),
+      { frontendRoot: root, router: transportRouter },
+    );
+    apps.push(app);
+    const page = await app.inject({ url: '/', headers: { accept: 'text/html' } });
+    expect(page.statusCode).toBe(200);
+    expect(page.headers['content-type']).toContain('text/html');
+    expect(page.body).toContain('Application');
+    expect((await app.inject('/health')).json()).toEqual({ status: 'ok' });
+  });
+
   it('nao serve frontend no desenvolvimento e falha sem build em producao', async () => {
     const local = await createApp(
       parseEnv({

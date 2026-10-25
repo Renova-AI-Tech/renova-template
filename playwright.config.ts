@@ -27,8 +27,8 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'pnpm dev',
-      url: baseURL,
+      command: 'node apps/backend/dist/index.js',
+      url: new URL('/health', baseURL).href,
       reuseExistingServer: false,
       gracefulShutdown: { signal: 'SIGTERM', timeout: 5000 },
       timeout: 60_000,

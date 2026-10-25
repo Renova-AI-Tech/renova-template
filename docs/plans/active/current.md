@@ -33,6 +33,8 @@ ficam nos planos locais; ferramenta externa de tarefas é opcional.
 - [Simplificação validada localmente](../../specs/renova-project-template/simplification-validation.md):
   configurador só pede nome, readiness não exige tabela de exemplo, legado retirado.
 - Workflow Blacksmith preparado, E2E bloqueante e agregador que recusa skip/falha.
+  `full` e `profiles` em 2 vCPU só em PR de código; push na main e PR só de docs
+  pulam esses jobs com `required` sempre reportado. E2E serve o build na mesma origem.
   Resultados remotos são registrados na PR do commit correspondente.
 
 ## Decidido

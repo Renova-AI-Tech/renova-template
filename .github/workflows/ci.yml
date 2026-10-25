@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -17,6 +18,8 @@ jobs:
   quality:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 15
+    outputs:
+      skip_full: ${{ steps.paths.outputs.skip_full }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -27,13 +30,19 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - id: paths
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/ci/skip-full.mjs
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:quick
       - run: pnpm build
 
   full:
     needs: quality
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    # PR de código. Na main o full da PR já rodou; alteração só de docs não precisa de DB/E2E.
+    if: github.event_name == 'pull_request' && needs.quality.outputs.skip_full != 'true'
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -61,9 +70,10 @@ jobs:
           retention-days: 7
 
   profiles:
-    if: github.repository == 'Renova-AI-Tech/renova-template'
+    # Só o template, só PR de código. Integração sequencial e E2E com 1 worker.
+    if: github.repository == 'Renova-AI-Tech/renova-template' && github.event_name == 'pull_request' && needs.quality.outputs.skip_full != 'true'
     needs: quality
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -97,12 +107,26 @@ jobs:
           FULL_RESULT: ${{ needs.full.result }}
           PROFILES_RESULT: ${{ needs.profiles.result }}
           SOURCE_REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          SKIP_FULL: ${{ needs.quality.outputs.skip_full }}
         run: |
           set -e
           test "$QUALITY_RESULT" = success
-          test "$FULL_RESULT" = success
+          if [ "$FULL_RESULT" = success ]; then
+            :
+          elif [ "$FULL_RESULT" = skipped ]; then
+            test "$EVENT_NAME" = push -o "$SKIP_FULL" = true
+          else
+            exit 1
+          fi
           if [ "$SOURCE_REPOSITORY" = "Renova-AI-Tech/renova-template" ]; then
-            test "$PROFILES_RESULT" = success
+            if [ "$PROFILES_RESULT" = success ]; then
+              :
+            elif [ "$PROFILES_RESULT" = skipped ]; then
+              test "$EVENT_NAME" = push -o "$SKIP_FULL" = true
+            else
+              exit 1
+            fi
           else
             test "$PROFILES_RESULT" = skipped
           fi

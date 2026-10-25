@@ -106,15 +106,28 @@ de teste identificados pelo namespace; nunca remova volumes por prefixo genéric
 ## CI Blacksmith
 
 [ci.yml](../../.github/workflows/ci.yml) roda em PRs, inclusive rascunhos, e push em
-main. Quality executa quick/build; full executa build, DB e navegador; required
-recusa falha, cancelamento ou skip dos gates aplicáveis. O repo mantenedor também
-executa a matriz de perfis; clones validam o próprio produto com quality/full.
-Actions fixadas por SHA, token somente leitura,
-sem credencial de publicação. E2E é bloqueante.
+main. Quality (2 vCPU) executa quick/build e classifica se o `full` deve correr;
+full (2 vCPU) executa build, DB e navegador só em PR de código; required sempre
+roda e recusa falha, cancelamento ou skip injustificado. Push na main não
+repete o full: o merge já passou na PR. PR só de `docs/`, `.md`, `.agents/` ou
+`LICENSE` também pula o full; quality continua obrigatório (harness/lint/tipos).
+O repo mantenedor executa a matriz de perfis em 2 vCPU, só em PR de código
+(os clones sequenciais não saturam 4 vCPU); clones validam o próprio produto
+com quality/full. Actions fixadas por SHA, token somente leitura
+(`contents` e `pull-requests`), sem credencial de publicação. E2E é bloqueante
+e sobe o backend compilado servindo o `dist` na mesma origem, não o `pnpm dev`.
 
-No repo destino, habilite o App Blacksmith e torne `required` obrigatório na
-proteção de branch. Configuração/testes locais não comprovam que o App está
-habilitado ou que um run remoto foi aprovado. Essa verificação pertence ao piloto CI.
+No repo destino, habilite o App Blacksmith e, na proteção da `main`, exija:
+
+1. pull request (sem push direto);
+2. branch atualizada em relação à base;
+3. o check **`required`**, não `full` nem `quality` isolados.
+
+Se `full` (ou `profiles`, no template) estiver marcado como obrigatório, o skip
+da main/docs-only bloqueia o merge. Esta receita não altera a proteção; só
+documenta o que ela precisa para o skip ser seguro. Configuração/testes locais
+não comprovam que o App está habilitado ou que um run remoto foi aprovado.
+Essa verificação pertence ao piloto CI.
 
 ## Hooks e agentes
 
@@ -122,3 +135,10 @@ Husky pre-commit executa lint-staged/Biome; pre-push executa quick.
 Claude PostToolUse usa [format-edited.mjs](../../scripts/hooks/format-edited.mjs).
 Não use `--no-verify`. MCP: [.mcp.json](../../.mcp.json) recebe variáveis do ambiente.
 Nenhuma credencial corporativa é necessária para desenvolver a base local.
+
+Há um único workflow de CI. `concurrency` cancela o run anterior da mesma ref:
+empurre um recorte, não cada WIP, para não gastar runner à toa. Não acrescente
+workflow que dispare agente, rerun cego ou `check:full` em loop. Skills e
+markdown entram no skip de `full`/`profiles`; harness e lint continuam no
+`quality`. `check:quick` isola `GIT_DIR` e git global (`insteadOf`) para os
+testes de publicação não herdarem o repositório real nem token na URL.

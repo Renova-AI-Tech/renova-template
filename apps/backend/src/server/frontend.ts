@@ -3,6 +3,7 @@ import { join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fastifyStatic from '@fastify/static';
 import type { FastifyInstance } from 'fastify';
+import type { BackendEnv } from '../env.js';
 
 const defaultRoot = fileURLToPath(new URL('../../../frontend/dist/', import.meta.url));
 const csp = [
@@ -34,6 +35,21 @@ function canonicalPath(url: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+export function shouldRegisterFrontend(
+  env: Pick<BackendEnv, 'NODE_ENV' | 'HOST' | 'PORT' | 'FRONTEND_URL'>,
+): boolean {
+  if (env.NODE_ENV === 'production') return true;
+  let frontend: URL;
+  try {
+    frontend = new URL(env.FRONTEND_URL);
+  } catch {
+    return false;
+  }
+  const implicit = frontend.protocol === 'https:' ? '443' : '80';
+  const port = frontend.port === '' ? implicit : frontend.port;
+  return frontend.hostname === env.HOST && Number(port) === env.PORT;
 }
 
 export async function registerFrontend(app: FastifyInstance, root = defaultRoot) {

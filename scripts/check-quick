@@ -4,6 +4,13 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+# O hook pre-push exporta GIT_DIR e afins; os testes que criam repositório temporário herdavam isso e gravavam
+# no repositório real (23/10/2026: core.bare=true e user.name de teste). O git acha o repositório pela pasta.
+unset $(git rev-parse --local-env-vars)
+# insteadOf global (token na URL) faz `git remote get-url` reescrever origin nos
+# repositórios descartáveis e quebra o contrato de publicação.
+export GIT_CONFIG_GLOBAL=/dev/null
+export GIT_CONFIG_SYSTEM=/dev/null
 
 echo "== harness:check"
 pnpm harness:check

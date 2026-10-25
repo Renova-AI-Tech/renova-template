@@ -2,6 +2,26 @@
 
 Cada sessão longa acrescenta um bloco no topo. Não apague histórico.
 
+## 2026-10-25 — custo do CI Blacksmith no template
+
+- Objetivo: o template herdar CI barato sem perder gate. Um PR contra `main`,
+  sem merge e sem alterar proteção/segredos. Porto de sinequa-portal-v2 #44,
+  com adaptação do job `profiles` que só existe aqui.
+- `full` e `profiles` passaram de 4 vCPU para 2: integração é sequencial, E2E
+  tem 1 worker, e `test:profiles` gera os dois clones em série. Quality/required
+  já eram 2 vCPU. `profiles` continua em toda PR de código (o clone autenticado
+  herda mudança de produto); não filtra por path de geração.
+- Push na `main` não repete full/profiles. PR só de docs (markdown, `docs/`,
+  `.agents/`, `LICENSE`) também não; `required` continua sempre reportado.
+  Proteção da branch precisa exigir PR + branch atualizada + check `required`
+  (não `full` nem `profiles`).
+- E2E deixa o `pnpm dev` e serve o build na mesma origem, como a publicação.
+- `check:quick` isola `GIT_DIR` e git global (`insteadOf`) para testes de
+  publicação. Um único workflow; concurrency cancela o run anterior da ref.
+- Não feito: pular `profiles` em PR de produto, parallelizar integração, cache
+  extra do Playwright, artifact do build entre jobs, pular quality na main,
+  alterar proteção/segredos, merge.
+
 ## 2026-10-19 — autenticação opcional validada localmente
 
 - CI da main `e085504` confirmado verde: [run 39341572792](https://github.com/Renova-AI-Tech/renova-template/actions/runs/39341572792).
