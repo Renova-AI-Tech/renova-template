@@ -455,13 +455,13 @@ inventar testes para satisfazer o parser atual.
 
 - **Status:** in_progress
 - **Ownership:** `.github/workflows` e testes diretamente relacionados.
-- **What:** GitHub Actions com runners Blacksmith por commit, E2E essencial bloqueante, agregador final e verificação de artefatos com sentinelas; diagnóstico e guia de habilitação por repo.
+- **What:** GitHub Actions com um job Blacksmith `required` por commit, E2E essencial bloqueante e verificação de artefatos com sentinelas; diagnóstico e guia de habilitação por repo.
 - **Depends on:** T-019
 - **Requirement:** REQ-024, REQ-031, REQ-039
 - **Done when:** Falha/cancelamento/skip obrigatório não resultam em apto; PR e push usam Blacksmith sem fallback; ambos os perfis passam com cache frio e DB novo; doctor diferencia CI pendente de local pronto; sentinelas são rejeitadas; registrar labels, duração e consumo observados sem prometer economia.
 - **Tests:** unit + workflow; pelo menos 5 cenários nomeados, contagem real registrada na execução.
 - **Gate:** CI (comando da tabela; incluir lint/types aplicáveis).
-- **Test:** `it('recusa CI incompleto mesmo com workflow secundario verde')` em `tests/unit/ci-contract.test.ts`.
+- **Test:** `it('recusa CI incompleto mesmo com workflow secundario verde')` em `tests/unit/ci-contract.test.ts` (único job `required`; o aplicador de deploy recusa outro nome).
 
 ## T-021 — Servir frontend e API na mesma imagem
 

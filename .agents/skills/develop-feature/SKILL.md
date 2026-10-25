@@ -29,4 +29,4 @@ não exija conta, integração, ID de tarefa ou criação de item para começar.
 ## Pronto
 
 `pnpm check:quick` verde **antes do push**. Validation Log com o que **não** foi
-verificado. Revisor ≠ autor. O check remoto de proteção é `ci`.
+verificado. Revisor ≠ autor. O check remoto de proteção é `required`.

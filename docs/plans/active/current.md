@@ -32,9 +32,11 @@ ficam nos planos locais; ferramenta externa de tarefas é opcional.
   já personalizados continua uma etapa futura.
 - [Simplificação validada localmente](../../specs/renova-project-template/simplification-validation.md):
   configurador só pede nome, readiness não exige tabela de exemplo, legado retirado.
-- Workflow Blacksmith: um job `ci` em 2 vCPU (install + quick + build uma vez;
-  DB/E2E em PR de código; matriz de perfis só com path de geração ou dispatch).
-  E2E serve o build na mesma origem. Proteção e `deploy:apply` exigem o check `ci`.
+- Workflow Blacksmith: um job `required` em 2 vCPU. Na PR de código: quick,
+  build, integração, containers e E2E. Na main e em PR só de docs: só quick,
+  para o SHA do merge. Matriz de perfis só com path de geração ou dispatch.
+  E2E serve o `dist` no `vite preview` e a API no backend compilado. Proteção
+  e `deploy:apply` exigem o check `required`.
   Resultados remotos são registrados na PR do commit correspondente.
 
 ## Decidido

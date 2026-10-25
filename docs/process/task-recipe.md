@@ -29,7 +29,7 @@ pnpm check:quick
 ```
 
 Depois de cada edição no núcleo: `test:loop`. `check:quick` local **antes** do
-push. `check:full` só quando a mudança toca I/O ou tela — o job `ci` já cobre
+push. `check:full` só quando a mudança toca I/O ou tela — o job `required` já cobre
 isso na PR de código. Não crie suíte, job ou workflow extra; não empurre WIP
 para disparar o Actions.
 

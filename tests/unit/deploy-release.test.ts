@@ -90,7 +90,7 @@ async function fixture() {
     ],
     jobs: {
       total_count: 1,
-      jobs: [{ name: 'ci', head_sha: sha, status: 'completed', conclusion: 'success' }],
+      jobs: [{ name: 'required', head_sha: sha, status: 'completed', conclusion: 'success' }],
     },
     failApply: false,
     uploadFiles: [] as string[],
@@ -277,7 +277,7 @@ describe('release Railway com plano fixado e CI do SHA exato', () => {
     },
   );
 
-  it.each(['queued', 'failed', 'wrong-sha', 'missing', 'ci-skipped', 'ci-failed'])(
+  it.each(['queued', 'failed', 'wrong-sha', 'missing', 'required-skipped', 'required-failed'])(
     'recusa CI %s, inclusive quando execução anterior está verde',
     async (kind) => {
       const f = await fixture();
@@ -287,8 +287,8 @@ describe('release Railway com plano fixado e CI do SHA exato', () => {
       if (kind === 'failed') f.state.runs[1].conclusion = 'failure';
       if (kind === 'wrong-sha') f.state.runs[1].headSha = 'a'.repeat(40);
       if (kind === 'missing') f.state.runs = [];
-      if (kind === 'ci-skipped') f.state.jobs.jobs[0].conclusion = 'skipped';
-      if (kind === 'ci-failed') f.state.jobs.jobs[0].conclusion = 'failure';
+      if (kind === 'required-skipped') f.state.jobs.jobs[0].conclusion = 'skipped';
+      if (kind === 'required-failed') f.state.jobs.jobs[0].conclusion = 'failure';
       await expect(applyRelease(target.project, f.options)).rejects.toThrow('CI');
       expect(f.mutated()).toBe(false);
     },

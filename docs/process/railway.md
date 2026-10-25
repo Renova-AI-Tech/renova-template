@@ -41,7 +41,7 @@ origem. O perfil sem login não precisa de Resend nem de conta de usuário.
 
    `prepare` consulta o destino e produz um plano local; não altera o Railway.
    `apply` exige esse plano, válido por 30 minutos, o mesmo commit, árvore limpa
-   e o workflow CI mais recente concluído com o job `ci` aprovado.
+   e o workflow CI mais recente concluído com o job `required` aprovado.
    Publica um arquivo Git do commit, sem `.env`, caches ou arquivos ignorados.
    A configuração usa o IaC nativo do Railway e administra apenas `app`, sem
    poder remover o banco ou seu volume. Não conecte autodeploy que contorne esse gate.

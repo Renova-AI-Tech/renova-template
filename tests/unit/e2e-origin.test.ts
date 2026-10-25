@@ -2,19 +2,13 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { e2eFrontendUrl, hasCompiledApp } from '../../scripts/db/e2e-origin.mjs';
+import { hasCompiledApp } from '../../scripts/db/e2e-origin.mjs';
 import { shouldRegisterFrontend } from '../../apps/backend/src/server/frontend.js';
 
-describe('origem unica do E2E no build compilado', () => {
+describe('E2E no build compilado com preview', () => {
   const dirs: string[] = [];
   afterEach(async () => {
     await Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
-  });
-
-  it('aponta o frontend do E2E para a porta do backend', () => {
-    expect(e2eFrontendUrl('43124')).toBe('http://127.0.0.1:43124');
-    expect(() => e2eFrontendUrl('0')).toThrow(/Invalid test backend port/);
-    expect(() => e2eFrontendUrl('70000')).toThrow(/Invalid test backend port/);
   });
 
   it('exige dist do frontend e do backend', async () => {
@@ -29,7 +23,7 @@ describe('origem unica do E2E no build compilado', () => {
     expect(await hasCompiledApp(root)).toBe(true);
   });
 
-  it('serve o build em producao ou na origem unica de teste, nao no Vite em duas portas', () => {
+  it('nao registra o SPA no backend de teste quando o preview usa outra porta', () => {
     expect(
       shouldRegisterFrontend({
         NODE_ENV: 'production',
@@ -43,16 +37,16 @@ describe('origem unica do E2E no build compilado', () => {
         NODE_ENV: 'test',
         HOST: '127.0.0.1',
         PORT: 43124,
-        FRONTEND_URL: 'http://127.0.0.1:43124',
+        FRONTEND_URL: 'http://127.0.0.1:43123',
       }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       shouldRegisterFrontend({
         NODE_ENV: 'test',
         HOST: '127.0.0.1',
         PORT: 43124,
-        FRONTEND_URL: 'http://127.0.0.1:43123',
+        FRONTEND_URL: 'http://127.0.0.1:43124',
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 });

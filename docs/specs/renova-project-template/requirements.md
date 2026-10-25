@@ -233,7 +233,7 @@ evidência ficam nas tarefas e nos relatórios de validação.
 | REQ-028 | T-005, T-023 | Banco indisponível e migration falha no smoke |
 | REQ-029 | T-026 | Relatório separado de publicação e ensaio de recuperação |
 | REQ-030 | T-024, T-026 | Publicação não modifica nem copia banco local |
-| REQ-031 | T-020, T-025 | Falha/cancelamento/skip recusados no agregador e no deploy do commit |
+| REQ-031 | T-020, T-025 | Falha/cancelamento/skip recusados no job `required` e no deploy do commit |
 | REQ-032 | T-010 | Regra funciona após renomear workspaces |
 | REQ-033 | T-019, T-026 | Matriz dos perfis gerados e pilotos cloud |
 | REQ-034 | T-029 | Registro de duas pessoas e intervenções |

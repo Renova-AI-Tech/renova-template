@@ -105,30 +105,37 @@ de teste identificados pelo namespace; nunca remova volumes por prefixo genéric
 
 ## CI Blacksmith
 
-[ci.yml](../../.github/workflows/ci.yml) é **um job** (`ci`) em 2 vCPU. Roda em
-PRs (inclusive rascunhos), push na `main` e `workflow_dispatch`. Sempre faz
-install, `check:quick` e um `build`. DB, containers e E2E entram no mesmo job
-só em PR de código ou no dispatch; push na main e PR só de `docs/`, `.md`,
-`.agents/` ou `LICENSE` pulam essa parte. O job **nunca dá skip**: o check
-continua verde ou vermelho. Actions fixadas por SHA, token somente leitura
-(`contents` e `pull-requests`), sem credencial de publicação. E2E é bloqueante
-e sobe o backend compilado servindo o `dist` na mesma origem, não o `pnpm dev`.
+[ci.yml](../../.github/workflows/ci.yml) é **um job** (`required`) em
+`blacksmith-2vcpu-ubuntu-2404`. Cada job extra cobraria setup, `pnpm install` e
+arredondamento de minuto; o agregador antigo também. O job roda em PR
+(incluindo rascunho), push na `main` e `workflow_dispatch`. Sem `paths-ignore` —
+o check precisa existir para a proteção não ficar esperando para sempre.
+
+Na PR de código: `check:quick` → `build` (uma vez) → integração → imagem Docker
+→ Chromium → E2E. Falha no início evita Playwright. PR só de `docs/`, `.md`,
+`.agents/` ou `LICENSE` e o push na `main` só correm install + `check:quick`:
+banco/imagem/navegador já rodaram na PR; o job ainda reporta `required` no SHA
+do merge para `deploy:apply` e o Wait for CI. Actions fixadas por SHA,
+`contents` + `pull-requests` read, sem credencial de publicação. E2E sobe o
+backend compilado na porta da API e o `vite preview` do `dist` na
+`FRONTEND_URL`, com proxy `/api`; não usa `pnpm dev`. Servir HTML/JS pelo
+Fastify estoura o limite de 120 req/min.
 
 No template, a matriz (`pnpm test:profiles`) é um passo do mesmo job, só se a
 PR toca receita/geração (`templates/`, `scripts/project/`, lockfile, CI, runner
 de teste) ou via `workflow_dispatch`. Clones não executam esse passo. Falha
 fechada se a lista de arquivos vier truncada.
 
-No repo destino, habilite o App Blacksmith e, na proteção da `main`, exija:
+Na proteção da `main`, exija:
 
 1. pull request (sem push direto);
 2. branch atualizada em relação à base;
-3. o check **`ci`** (nome do job). Se a UI mostrar `CI / ci`, use exatamente
-   esse texto.
+3. o check **`required`** (mesmo nome de antes; não mude a proteção). Se a UI
+   mostrar `CI / required`, use exatamente esse texto.
 
-Não exija `quality`, `full`, `profiles` nem `required` — esses jobs não existem
-mais. Esta receita não altera a proteção. `deploy:apply` também consulta o job
-`ci` no SHA exato. Configuração/testes locais não comprovam que o App está
+Não exija `quality`, `full` nem `profiles` — esses jobs não existem mais. Esta
+receita não altera a proteção. `deploy:apply` também consulta o job `required`
+no SHA exato. Configuração/testes locais não comprovam que o App está
 habilitado ou que um run remoto foi aprovado. Essa verificação pertence ao piloto CI.
 
 ## Hooks e agentes

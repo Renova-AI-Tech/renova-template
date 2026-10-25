@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 import { parseProjectConfig } from '../project/config.mjs';
 import { createTestDatabase, startMailpit, stopTestDatabase } from './local.mjs';
 import { buildMigrator, migrateLocalDatabase } from './migrate.mjs';
-import { e2eFrontendUrl, hasCompiledApp } from './e2e-origin.mjs';
+import { hasCompiledApp } from './e2e-origin.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const [mode = 'integration', ...filters] = process.argv.slice(2);
@@ -44,7 +44,6 @@ try {
   if (requestedSignal) throw new Error('Validation interrupted');
   await migrateLocalDatabase(handle);
   if (handle.env.PROFILE === 'authenticated') await startMailpit(root, handle);
-  if (mode === 'e2e') handle.env.FRONTEND_URL = e2eFrontendUrl(handle.env.PORT);
   // Each browser file gets a fresh server: independent journeys must not spend
   // another file's IP budget. The application's rate limits remain unchanged.
   const groups =

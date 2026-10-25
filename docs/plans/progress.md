@@ -2,6 +2,19 @@
 
 Cada sessão longa acrescenta um bloco no topo. Não apague histórico.
 
+## 2026-10-25 — alinhamento com sinequa #44 (job `required`)
+
+- sinequa-portal-v2 #44 (`d6aea2a`) colapsou para **um job `required` em 2 vCPU**
+  e manteve o nome do check da proteção. E2E passou a `vite preview` + API no
+  `dist` porque servir o SPA pelo Fastify estourava 120 req/min.
+- Template acompanha: o agregador some, o check continua **`required`** (não
+  `ci`). Push na main só `check:quick`. Matriz de perfis permanece passo do
+  mesmo job, só com path de geração ou `workflow_dispatch` (o clone do sinequa
+  não tem esse passo). Classificador docs-only fica: lista arquivos da PR,
+  sem segundo job.
+- AGENTS.md e a skill `develop-feature` seguem mandando agentes nos clones a
+  rodar `check:quick` local, não criar job/workflow/suíte e não empurrar WIP.
+
 ## 2026-10-25 — um job `ci` e regras de agente
 
 - Follow-up do dono na PR #6: 3+ jobs era excesso; agentes nos clones precisam

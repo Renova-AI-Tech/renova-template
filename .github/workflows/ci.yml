@@ -16,7 +16,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ci:
+  # Um job: cada job cobra setup, install e arredonda o minuto.
+  # O id `required` é o check da proteção da main e o que deploy:apply consulta.
+  required:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 25
     steps:
@@ -35,16 +37,18 @@ jobs:
         run: node scripts/ci/skip-full.mjs
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:quick
-      - run: pnpm build
-      - name: Instalar Chromium
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && steps.paths.outputs.skip_full != 'true') || (github.repository == 'Renova-AI-Tech/renova-template' && steps.paths.outputs.run_profiles == 'true')
+      # Banco, imagem e navegador já rodaram na PR. O push na main só precisa
+      # reportar `required` no SHA do merge (deploy / Wait for CI).
+      - if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && steps.paths.outputs.skip_full != 'true')
+        run: pnpm build
+      - if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && steps.paths.outputs.skip_full != 'true')
+        run: pnpm test:integration
+      - if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && steps.paths.outputs.skip_full != 'true')
+        run: pnpm test:containers
+      - if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && steps.paths.outputs.skip_full != 'true') || (github.repository == 'Renova-AI-Tech/renova-template' && steps.paths.outputs.run_profiles == 'true')
         run: pnpm exec playwright install --with-deps chromium
-      - name: Containers, integração e navegador
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && steps.paths.outputs.skip_full != 'true')
-        run: |
-          pnpm test:containers
-          pnpm test:integration
-          pnpm test:e2e
+      - if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && steps.paths.outputs.skip_full != 'true')
+        run: pnpm test:e2e
       - name: Matriz de perfis
         if: github.repository == 'Renova-AI-Tech/renova-template' && (github.event_name == 'workflow_dispatch' || steps.paths.outputs.run_profiles == 'true')
         run: pnpm test:profiles

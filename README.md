@@ -101,9 +101,10 @@ pnpm check:full                        # quick, build, integração real e E2E
 
 Integração e E2E criam bancos descartáveis e portas exclusivas, sem usar o banco
 de desenvolvimento. `pnpm ci:local` é uma checagem parcial sem navegador.
-O workflow Blacksmith tem um job `ci` (2 vCPU): install, `check:quick` e build
-sempre; DB/E2E em PR de código. Proteção da `main` deve exigir o check **`ci`**.
-Rode `pnpm check:quick` localmente antes do push; não crie job/workflow extra.
+O workflow Blacksmith tem um job `required` (2 vCPU): install e `check:quick`
+sempre; build/DB/E2E em PR de código. Proteção da `main` deve exigir o check
+**`required`**. Rode `pnpm check:quick` localmente antes do push; não crie
+job/workflow extra.
 A execução remota e as proteções de branch precisam ser verificadas no repositório
 destino; a instalação do App Blacksmith não é feita por este template.
 
