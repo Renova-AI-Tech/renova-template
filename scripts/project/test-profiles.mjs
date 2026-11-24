@@ -116,9 +116,9 @@ try {
       }
     }
   }
-} catch {
+} catch (error) {
   process.stderr.write(
-    'A validação dos perfis falhou. Confira o gate acima; nenhum ambiente local existente foi alterado.\n',
+    `${error instanceof Error ? error.message : error}\nA validação dos perfis falhou. Confira o gate acima; nenhum ambiente local existente foi alterado.\n`,
   );
   process.exitCode = 1;
 } finally {

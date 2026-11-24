@@ -7,7 +7,7 @@ import type { AnyRouter } from '@trpc/server';
 import Fastify, { LogController, type FastifyReply } from 'fastify';
 import type { BackendEnv } from '../env.js';
 import { clientIp } from './client-ip.js';
-import { registerFrontend } from './frontend.js';
+import { registerFrontend, shouldRegisterFrontend } from './frontend.js';
 import { registerTrpc } from './register.js';
 import { registerSecurity, type SecurityOptions } from './security.js';
 import type { ExampleRepository } from '../modules/example/example.repository.js';
@@ -142,7 +142,7 @@ export async function createApp(env: BackendEnv, options: AppOptions = {}) {
   }
   try {
     await registerTrpc(app, options.router, options.examples, options.auth, options.records);
-    if (env.NODE_ENV === 'production') await registerFrontend(app, options.frontendRoot);
+    if (shouldRegisterFrontend(env)) await registerFrontend(app, options.frontendRoot);
   } catch (error) {
     await app.close();
     throw error;

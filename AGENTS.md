@@ -30,6 +30,23 @@ pnpm dev                 # Vite + Fastify; porta exibida no terminal
 
 Aliases: `ci:quick` → `check:quick`. Sem npm/yarn. Sem `--no-verify`.
 
+## CI magro (obrigatório para agentes)
+
+O workflow remoto é **um job** (`required`) em 2 vCPU. Proteção da `main` e
+`deploy:apply` exigem o check **`required`**. Cada `synchronize` cobra um runner.
+
+- Rode `pnpm check:quick` **localmente** antes do primeiro push. O pre-push já
+  faz isso; não use `--no-verify`.
+- Não empurre WIP para “ver o CI”. Um recorte, um push. Concurrency cancela o
+  run anterior, mas o start ainda entra na fatura.
+- Não crie workflow, job ou suíte de teste nova sem pedido explícito. Estenda
+  `tests/unit`, `tests/property`, `tests/integration` ou `tests/e2e` existentes.
+- Não acrescente rerun cego, agregador, agente no Actions nem um segundo
+  `check:full`. DB/E2E já entram no job `required` em PR de código.
+- PR só de docs/skills não dispara DB/E2E; não misture código só para forçar
+  a suíte. No template, a matriz de perfis só corre se a receita/geração mudou
+  ou via `workflow_dispatch`.
+
 ## Produto e referência
 
 `/` começa com um guia substituível: implemente o produto em `apps/frontend/src/pages/HomePage.tsx`.
@@ -55,6 +72,7 @@ do plano e verify recebe a origem HTTPS. Resend foi validado no piloto; veja a
 - Pronto = comando verde + o que **não** foi verificado escrito. O texto do agente não é o veredito.
 - Segredo fora do Git. MCP em [`.mcp.json`](.mcp.json) com `${VAR}`.
 - Nenhum envio a cliente real fora da produção definitiva. Todo envio externo (email, SMS, WhatsApp, webhook, cobrança) passa pelo [portão de envio](docs/process/authentication.md#portão-de-envio): por padrão só sai para `OUTBOUND_ALLOWED_RECIPIENTS`; `OUTBOUND_SEND_TO_ANY=true` é ligado à mão, só na produção definitiva, nunca deduzido de `NODE_ENV`, ambiente, hostname ou branch. Lote acima do limite é recusado. Canal novo entra pelo portão; não chame provedor direto. Antes de ligar rotina agendada ou lote, conte os destinatários e pergunte na dúvida.
+- CI magro: checks locais primeiro; estenda testes existentes; não crie job/workflow nem empurre WIP para o Actions.
 
 ## Skills (corpo só sob demanda)
 

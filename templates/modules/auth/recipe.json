@@ -31,7 +31,7 @@
     },
     {
       "path": "apps/backend/src/server/app.ts",
-      "beforeSha256": "3000d1e7dd674081dac3da1a7651bb782ac4777e333b1744cf51c3e5e7f6e230"
+      "beforeSha256": "ef9e2187af570662dadb348b9c5c36f495c8c1305c9941aebc049c6ed83999dc"
     },
     {
       "path": "apps/backend/src/server/register.ts",

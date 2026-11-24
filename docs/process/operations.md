@@ -105,15 +105,37 @@ de teste identificados pelo namespace; nunca remova volumes por prefixo genéric
 
 ## CI Blacksmith
 
-[ci.yml](../../.github/workflows/ci.yml) roda em PRs, inclusive rascunhos, e push em
-main. Quality executa quick/build; full executa build, DB e navegador; required
-recusa falha, cancelamento ou skip dos gates aplicáveis. O repo mantenedor também
-executa a matriz de perfis; clones validam o próprio produto com quality/full.
-Actions fixadas por SHA, token somente leitura,
-sem credencial de publicação. E2E é bloqueante.
+[ci.yml](../../.github/workflows/ci.yml) é **um job** (`required`) em
+`blacksmith-2vcpu-ubuntu-2404`. Cada job extra cobraria setup, `pnpm install` e
+arredondamento de minuto; o agregador antigo também. O job roda em PR
+(incluindo rascunho), push na `main` e `workflow_dispatch`. Sem `paths-ignore` —
+o check precisa existir para a proteção não ficar esperando para sempre.
 
-No repo destino, habilite o App Blacksmith e torne `required` obrigatório na
-proteção de branch. Configuração/testes locais não comprovam que o App está
+Na PR de código: `check:quick` → `build` (uma vez) → integração → imagem Docker
+→ Chromium → E2E. Falha no início evita Playwright. PR só de `docs/`, `.md`,
+`.agents/` ou `LICENSE` e o push na `main` só correm install + `check:quick`:
+banco/imagem/navegador já rodaram na PR; o job ainda reporta `required` no SHA
+do merge para `deploy:apply` e o Wait for CI. Actions fixadas por SHA,
+`contents` + `pull-requests` read, sem credencial de publicação. E2E sobe o
+backend compilado na porta da API e o `vite preview` do `dist` na
+`FRONTEND_URL`, com proxy `/api`; não usa `pnpm dev`. Servir HTML/JS pelo
+Fastify estoura o limite de 120 req/min.
+
+No template, a matriz (`pnpm test:profiles`) é um passo do mesmo job, só se a
+PR toca receita/geração (`templates/`, `scripts/project/`, lockfile, CI, runner
+de teste) ou via `workflow_dispatch`. Clones não executam esse passo. Falha
+fechada se a lista de arquivos vier truncada.
+
+Na proteção da `main`, exija:
+
+1. pull request (sem push direto);
+2. branch atualizada em relação à base;
+3. o check **`required`** (mesmo nome de antes; não mude a proteção). Se a UI
+   mostrar `CI / required`, use exatamente esse texto.
+
+Não exija `quality`, `full` nem `profiles` — esses jobs não existem mais. Esta
+receita não altera a proteção. `deploy:apply` também consulta o job `required`
+no SHA exato. Configuração/testes locais não comprovam que o App está
 habilitado ou que um run remoto foi aprovado. Essa verificação pertence ao piloto CI.
 
 ## Hooks e agentes
@@ -122,3 +144,10 @@ Husky pre-commit executa lint-staged/Biome; pre-push executa quick.
 Claude PostToolUse usa [format-edited.mjs](../../scripts/hooks/format-edited.mjs).
 Não use `--no-verify`. MCP: [.mcp.json](../../.mcp.json) recebe variáveis do ambiente.
 Nenhuma credencial corporativa é necessária para desenvolver a base local.
+
+Há um único workflow e um único job. `concurrency` cancela o run anterior da
+mesma ref: empurre um recorte, não cada WIP. Não acrescente workflow, job,
+agregador, rerun cego nem suíte nova. Estenda os testes existentes; rode
+`check:quick` local antes do push. `check:quick` isola `GIT_DIR` e git global
+(`insteadOf`) para os testes de publicação não herdarem o repositório real nem
+token na URL. Detalhe para agentes: [AGENTS.md](../../AGENTS.md).

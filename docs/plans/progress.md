@@ -2,6 +2,55 @@
 
 Cada sessão longa acrescenta um bloco no topo. Não apague histórico.
 
+## 2026-10-25 — alinhamento com sinequa #44 (job `required`)
+
+- sinequa-portal-v2 #44 (`d6aea2a`) colapsou para **um job `required` em 2 vCPU**
+  e manteve o nome do check da proteção. E2E passou a `vite preview` + API no
+  `dist` porque servir o SPA pelo Fastify estourava 120 req/min.
+- Template acompanha: o agregador some, o check continua **`required`** (não
+  `ci`). Push na main só `check:quick`. Matriz de perfis permanece passo do
+  mesmo job, só com path de geração ou `workflow_dispatch` (o clone do sinequa
+  não tem esse passo). Classificador docs-only fica: lista arquivos da PR,
+  sem segundo job.
+- AGENTS.md e a skill `develop-feature` seguem mandando agentes nos clones a
+  rodar `check:quick` local, não criar job/workflow/suíte e não empurrar WIP.
+
+## 2026-10-25 — um job `ci` e regras de agente
+
+- Follow-up do dono na PR #6: 3+ jobs era excesso; agentes nos clones precisam
+  de regra explícita para não inflar o CI.
+- Colapso: `quality` + `full` + `profiles` + `required` → um job `ci` em 2 vCPU.
+  Install/quick/build uma vez. DB/E2E como passos (PR de código ou dispatch).
+  Sem agregador e sem runner GitHub. Proteção e `deploy:apply` passam a exigir
+  **`ci`**, não `required`.
+- Matriz só no template, se a PR toca receita/geração (`templates/`,
+  `scripts/project/`, lockfile, workflow, runner) ou via `workflow_dispatch`.
+  Não corre em PR de produto nem no push da main. Falha da matriz falha o `ci`.
+- AGENTS.md, skill `develop-feature`, task-recipe, PR template, frontend/harness
+  AGENTS e operations: checks locais antes do push; não criar job/workflow/suíte;
+  não empurrar WIP para o Actions; estender testes existentes.
+- sinequa-portal-v2 #44 ainda não tinha esse follow-up no momento desta nota.
+
+## 2026-10-25 — custo do CI Blacksmith no template
+
+- Objetivo: o template herdar CI barato sem perder gate. Um PR contra `main`,
+  sem merge e sem alterar proteção/segredos. Porto de sinequa-portal-v2 #44,
+  com adaptação do job `profiles` que só existe aqui.
+- `full` e `profiles` passaram de 4 vCPU para 2: integração é sequencial, E2E
+  tem 1 worker, e `test:profiles` gera os dois clones em série. Quality/required
+  já eram 2 vCPU. `profiles` continua em toda PR de código (o clone autenticado
+  herda mudança de produto); não filtra por path de geração.
+- Push na `main` não repete full/profiles. PR só de docs (markdown, `docs/`,
+  `.agents/`, `LICENSE`) também não; `required` continua sempre reportado.
+  Proteção da branch precisa exigir PR + branch atualizada + check `required`
+  (não `full` nem `profiles`).
+- E2E deixa o `pnpm dev` e serve o build na mesma origem, como a publicação.
+- `check:quick` isola `GIT_DIR` e git global (`insteadOf`) para testes de
+  publicação. Um único workflow; concurrency cancela o run anterior da ref.
+- Não feito: pular `profiles` em PR de produto, parallelizar integração, cache
+  extra do Playwright, artifact do build entre jobs, pular quality na main,
+  alterar proteção/segredos, merge.
+
 ## 2026-10-19 — autenticação opcional validada localmente
 
 - CI da main `e085504` confirmado verde: [run 39341572792](https://github.com/Renova-AI-Tech/renova-template/actions/runs/39341572792).

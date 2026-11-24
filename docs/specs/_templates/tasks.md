@@ -17,6 +17,8 @@ pnpm test:loop
 pnpm check:quick
 ```
 
+`check:quick` local antes do push. Estenda testes existentes; não crie job/workflow.
+
 ## Validation Log
 
 - Rodou:

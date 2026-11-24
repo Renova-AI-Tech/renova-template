@@ -16,3 +16,4 @@
   `src/api.ts`. Nada de acesso ao banco, segredos ou runtime do backend no browser.
 - Valide os testes de navegador afetados com `pnpm test:e2e`, incluindo abertura
   direta da rota, largura de 390 pixels, teclado e estados de erro/carregamento.
+  Estenda o spec existente em `tests/e2e/`; não crie suíte, job ou workflow novo.

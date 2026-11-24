@@ -9,4 +9,5 @@ CSS remota. Não adicione defaults de pessoas ou cargos. Configuração de gráf
 é código confiável, não entrada de usuários.
 
 Rode `pnpm --filter @renova/ui test`, `pnpm --filter @renova/ui typecheck` e os
-testes de navegador afetados. Veja [NOTICE.md](NOTICE.md) para a origem do código.
+testes de navegador afetados. Estenda os testes deste pacote; não crie suíte,
+job ou workflow de CI. Veja [NOTICE.md](NOTICE.md) para a origem do código.

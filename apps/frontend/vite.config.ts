@@ -27,23 +27,27 @@ export default defineConfig(({ command }) => {
     throw new Error('Invalid local frontend/backend address. Run pnpm db:up.');
   }
 
+  const apiProxy = {
+    '/api': { target: `http://127.0.0.1:${backendPort}`, changeOrigin: false },
+  };
+  const serve = {
+    host: '127.0.0.1',
+    port: Number(origin.port),
+    strictPort: true,
+    proxy: apiProxy,
+    headers: {
+      'X-Content-Type-Options': 'nosniff',
+      'Referrer-Policy': 'no-referrer',
+      'Content-Security-Policy': `default-src 'self'; script-src 'self' 'nonce-${developmentNonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws://127.0.0.1:*; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`,
+    },
+  };
+
   return {
     plugins: [react(), tailwindcss()],
     define: { __PROJECT_NAME__: JSON.stringify(config.project.displayName) },
     html: command === 'serve' ? { cspNonce: developmentNonce } : {},
-    server: {
-      host: '127.0.0.1',
-      port: Number(origin.port),
-      strictPort: true,
-      proxy: {
-        '/api': { target: `http://127.0.0.1:${backendPort}`, changeOrigin: false },
-      },
-      headers: {
-        'X-Content-Type-Options': 'nosniff',
-        'Referrer-Policy': 'no-referrer',
-        'Content-Security-Policy': `default-src 'self'; script-src 'self' 'nonce-${developmentNonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws://127.0.0.1:*; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`,
-      },
-    },
+    server: serve,
+    preview: serve,
     build: { sourcemap: false, assetsInlineLimit: 0 },
   };
 });
