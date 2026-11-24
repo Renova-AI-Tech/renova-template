@@ -214,6 +214,73 @@ describe('identidade opcional com Postgres real', () => {
       await production.close();
     }
   });
+  it('portão de envio barra destinatário fora da lista mesmo com transporte injetado e NODE_ENV=production', async () => {
+    const delivered: AuthMail[] = [];
+    const logged: unknown[] = [];
+    const gatedSettings = {
+      ...settings,
+      NODE_ENV: 'production' as const,
+      FRONTEND_URL: 'https://app.example.com',
+      RESEND_API_KEY: 're_SYNTHETIC_NOT_SENT',
+      OUTBOUND_ALLOWED_RECIPIENTS: 'liberado@example.com',
+      OUTBOUND_SEND_TO_ANY: 'false' as const,
+    };
+    const capture = {
+      sendMail: async (message: AuthMail) => {
+        delivered.push(message);
+      },
+      onEvent: (event: string) => events.push(event),
+      onOutbound: (entry: unknown) => logged.push(entry),
+    };
+    const gated = createAuthService(gatedSettings, capture);
+    // Same database, allowlist without the recipient: models a list changed after activation.
+    const narrowed = createAuthService(
+      { ...gatedSettings, OUTBOUND_ALLOWED_RECIPIENTS: '@example.org' },
+      capture,
+    );
+    try {
+      expect(await gated.invite('cliente-real@example.com', 'Cliente')).toEqual({
+        delivery: 'blocked',
+      });
+      expect(delivered).toEqual([]);
+      expect(
+        (
+          await inspection.query('SELECT email FROM public.auth_user WHERE email=$1', [
+            'cliente-real@example.com',
+          ])
+        ).rows,
+      ).toEqual([]);
+      expect(logged).toEqual([
+        {
+          event: 'outbound_blocked',
+          channel: 'email',
+          reason: 'recipient_not_allowed',
+          recipient: 'c***@example.com',
+        },
+      ]);
+
+      expect(await gated.invite('liberado@example.com', 'Liberado')).toEqual({
+        delivery: 'accepted',
+      });
+      expect(delivered.map((message) => message.to)).toEqual(['liberado@example.com']);
+
+      const reset = await narrowed.handle(
+        new Request('https://app.example.com/api/auth/request-password-reset', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', origin: 'https://app.example.com' },
+          body: JSON.stringify({ email: 'liberado@example.com' }),
+        }),
+        '192.0.2.31',
+      );
+      expect(reset.status).toBe(200);
+      expect(delivered).toHaveLength(1);
+      expect(events).toContain('email_blocked');
+      expect(JSON.stringify(logged)).not.toContain('liberado@');
+    } finally {
+      await gated.close();
+      await narrowed.close();
+    }
+  });
   it('recusa email acima de 254 caracteres antes de processar autenticacao ou convite', async () => {
     const boundary = `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(61)}`;
     expect(boundary).toHaveLength(254);

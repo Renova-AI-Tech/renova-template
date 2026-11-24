@@ -37,6 +37,20 @@ const schema = z
       .string()
       .regex(/^re_[A-Za-z0-9_-]{10,}$/)
       .optional(),
+    // Outbound gate: allowlist plus a manual key. The gate in @renova/auth decides;
+    // nothing here derives permission from NODE_ENV, hostname or branch.
+    OUTBOUND_ALLOWED_RECIPIENTS: z
+      .string()
+      .max(4000)
+      .refine((value) =>
+        value
+          .split(',')
+          .map((entry) => entry.trim())
+          .filter(Boolean)
+          .every((entry) => /^(?:[^\s@,]+)?@[^\s@,]+\.[^\s@,]+$/.test(entry)),
+      )
+      .optional(),
+    OUTBOUND_SEND_TO_ANY: z.enum(['true', 'false']).optional(),
     RAILWAY_PROJECT_ID: z.uuid().optional(),
     RAILWAY_ENVIRONMENT_ID: z.uuid().optional(),
     RAILWAY_SERVICE_ID: z.uuid().optional(),
@@ -80,6 +94,13 @@ const schema = z
       }
       if (value.RESEND_API_KEY)
         ctx.addIssue({ code: 'custom', path: ['RESEND_API_KEY'], message: 'Use local email.' });
+      // Restriction only: local runs never unlock every recipient.
+      if (value.OUTBOUND_SEND_TO_ANY === 'true')
+        ctx.addIssue({
+          code: 'custom',
+          path: ['OUTBOUND_SEND_TO_ANY'],
+          message: 'Local runs keep the allowlist.',
+        });
     }
     if (value.NODE_ENV === 'production') {
       if (value.DEPLOY_TARGET !== 'railway')
@@ -90,8 +111,11 @@ const schema = z
         'RAILWAY_ENVIRONMENT_ID',
         'RAILWAY_SERVICE_ID',
         'RENOVA_DB_NAME',
+        // Explicit outbound policy: an empty list or a missing key is a configuration error.
+        'OUTBOUND_ALLOWED_RECIPIENTS',
+        'OUTBOUND_SEND_TO_ANY',
       ] as const) {
-        if (!value[key])
+        if (!value[key]?.trim())
           ctx.addIssue({ code: 'custom', path: [key], message: 'Configure production runtime.' });
       }
       for (const key of ['SMTP_HOST', 'SMTP_PORT', 'MAILPIT_PORT'] as const) {

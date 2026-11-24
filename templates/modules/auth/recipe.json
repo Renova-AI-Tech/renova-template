@@ -3,7 +3,7 @@
   "entries": [
     {
       "path": ".env.example",
-      "beforeSha256": "e3d1b22e75efdcd22866a2c3a9d970bfa9fe6d19d8f081f1f7a85ae560c31d5c"
+      "beforeSha256": "841e7dfeabe481c072e3b98ecae062d787252b20bc3c6d11749515fa5c495c66"
     },
     {
       "path": "apps/backend/package.json",
@@ -175,6 +175,14 @@
     },
     {
       "path": "tests/unit/auth-remote-invite.test.ts",
+      "beforeSha256": null
+    },
+    {
+      "path": "packages/auth/src/outbound.ts",
+      "beforeSha256": null
+    },
+    {
+      "path": "tests/unit/outbound-gate.test.ts",
       "beforeSha256": null
     }
   ]

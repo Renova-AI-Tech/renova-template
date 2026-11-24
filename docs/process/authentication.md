@@ -74,6 +74,33 @@ origem HTTPS, credenciais próprias e Resend. Não possui cadastro público nem
 painel de usuários. A operação remota de convite é reservada ao responsável e
 exige validar entrega e ativação em cada nova instalação.
 
+## Portão de envio
+
+Todo envio do projeto passa por um portão único
+(`packages/auth/src/outbound.ts`) antes de chegar ao Mailpit ou ao Resend,
+inclusive um transporte injetado em teste. Por padrão, só saem mensagens para:
+
+- endereços de domínio reservado (`.test`, `.example`, `.invalid`, `.localhost`),
+  que nunca chegam a uma pessoa;
+- a lista `OUTBOUND_ALLOWED_RECIPIENTS`: endereços exatos ou `@dominio`, separados
+  por vírgula (subdomínio não entra).
+
+Qualquer outro destinatário é bloqueado e registrado no log como
+`outbound_blocked`, com endereço mascarado. O convite bloqueado não cria conta.
+Liberar qualquer endereço exige `OUTBOUND_SEND_TO_ANY=true`, ligado à mão e
+somente na produção definitiva; o portão registra `outbound_unrestricted` ao
+iniciar. A chave nunca é deduzida de `NODE_ENV`, nome de ambiente, hostname ou
+branch: uma homologação com `NODE_ENV=production` continua travada. Fora de
+produção a chave é recusada. Em produção, as duas variáveis são obrigatórias.
+
+Envio em lote usa `sendBatch` do portão: lote acima de 20 mensagens é recusado
+inteiro antes de qualquer envio (`outbound_batch_refused`). Antes de ligar uma
+rotina agendada ou um lote, confira de onde vêm os destinatários e quantos serão.
+Um canal novo (SMS, WhatsApp, webhook, cobrança) entrega seu transporte a
+`createOutboundGate`; `tests/unit/outbound-paths.test.ts` falha se algum código
+chamar provedor ou rede por fora. Dado real copiado para teste chega sem e-mail e
+telefone, ou com eles trocados por endereços internos.
+
 ## Publicação e email externo
 
 O transporte de produção usa Resend HTTPS; o uso local permanece no Mailpit.

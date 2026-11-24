@@ -18,6 +18,8 @@ const auth = {
 const production = {
   ...auth,
   RESEND_API_KEY: 're_SYNTHETIC_EMAIL_KEY',
+  OUTBOUND_ALLOWED_RECIPIENTS: '@example.com',
+  OUTBOUND_SEND_TO_ANY: 'false',
   NODE_ENV: 'production',
   DEPLOY_TARGET: 'railway',
   RAILWAY_PROJECT_ID: 'fa03c408-2461-4401-9de8-a25449b629e6',

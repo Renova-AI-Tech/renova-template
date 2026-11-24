@@ -102,6 +102,12 @@ export async function executeRemoteInvite(
       output.stdout.write('Convite aceito pelo provedor de email. Nenhuma senha foi enviada.\n');
       return 0;
     }
+    if (result.delivery === 'blocked') {
+      output.stderr.write(
+        'Destinatário fora da lista liberada de envio. Nada foi enviado e nenhuma conta foi criada; confira OUTBOUND_ALLOWED_RECIPIENTS no serviço.\n',
+      );
+      return 1;
+    }
     output.stderr.write(
       'Entrega não confirmada. A conta continua pendente; confira a configuração do serviço.\n',
     );
