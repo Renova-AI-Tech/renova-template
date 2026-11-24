@@ -25,6 +25,8 @@ const runtime = {
   AUTH_SECRET: '5e09f1a3c8b647d210a7e4d9c32f68b0a97dc3e124658fb0c7ae93b56df81042',
   RESEND_API_KEY: `re_${sentinel}`,
   AUTH_EMAIL_FROM: 'test@example.com',
+  OUTBOUND_ALLOWED_RECIPIENTS: '@example.com',
+  OUTBOUND_SEND_TO_ANY: 'false',
 };
 let origin;
 

@@ -21,7 +21,12 @@ try {
     },
   });
   const result = await auth.invite(email, name);
-  if (result.delivery === 'failed') process.exitCode = 1;
+  if (result.delivery === 'blocked') {
+    process.stderr.write(
+      'Destinatário fora da lista liberada de envio (OUTBOUND_ALLOWED_RECIPIENTS). Nada foi enviado e nenhuma conta foi criada.\n',
+    );
+    process.exitCode = 1;
+  } else if (result.delivery === 'failed') process.exitCode = 1;
   else
     process.stdout.write(
       'Solicitação concluída. Consulte a caixa de email local indicada por pnpm run doctor. Nenhuma senha foi enviada.\n',

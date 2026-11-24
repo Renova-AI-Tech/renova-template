@@ -237,7 +237,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     );
     if (result.profile === 'authenticated')
       process.stdout.write(
-        'Antes de publicar, configure RESEND_API_KEY e AUTH_EMAIL_FROM no serviço app.\n',
+        'Antes de publicar, configure RESEND_API_KEY, AUTH_EMAIL_FROM, OUTBOUND_ALLOWED_RECIPIENTS e OUTBOUND_SEND_TO_ANY=false no serviço app.\n',
       );
     process.stdout.write(
       'Credenciais guardadas em .renova/railway-credentials.json (ignorado pelo Git). Não compartilhe esse arquivo.\n',

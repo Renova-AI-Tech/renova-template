@@ -24,7 +24,7 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 const env = { ...process.env };
 for (const name of Object.keys(env)) {
   if (
-    /^(?:POSTGRES_|RENOVA_|AUTH_|SMTP_|MAILPIT_|RESEND_|RAILWAY_)/.test(name) ||
+    /^(?:POSTGRES_|RENOVA_|AUTH_|SMTP_|MAILPIT_|RESEND_|RAILWAY_|OUTBOUND_)/.test(name) ||
     [
       'DATABASE_URL',
       'MIGRATION_DATABASE_URL',

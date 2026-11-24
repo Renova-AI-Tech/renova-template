@@ -31,7 +31,8 @@ origem. O perfil sem login não precisa de Resend nem de conta de usuário.
    cole em chats, tickets ou PRs. Se perder essa cópia, peça recuperação ao
    responsável; não recrie senhas nem apague o volume.
 5. **Somente com login:** configure no painel do serviço `app` as variáveis
-   `RESEND_API_KEY` e `AUTH_EMAIL_FROM`, conforme a seção abaixo.
+   `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, `OUTBOUND_ALLOWED_RECIPIENTS` e
+   `OUTBOUND_SEND_TO_ANY=false`, conforme a seção abaixo.
 6. Com o trabalho commitado e sem alterações locais, prepare e confira o plano:
 
    ```sh
@@ -69,6 +70,13 @@ Use um subdomínio separado ou confirme a conta correta. A integração faz uma
 requisição HTTPS ao Resend, com limite de tempo, sem redirecionamento nem repetição
 silenciosa. Aceitação pelo Resend não equivale a entrega na caixa do destinatário.
 O ambiente local continua usando Mailpit, sem envios externos.
+
+O [portão de envio](authentication.md#portão-de-envio) vale também aqui: o
+serviço só envia para `OUTBOUND_ALLOWED_RECIPIENTS` (endereços da equipe ou
+`@dominio-interno`). Homologação, prévia e um destino ainda não definitivo ficam
+com `OUTBOUND_SEND_TO_ANY=false`, mesmo com `NODE_ENV=production`. Ligue `true`
+à mão somente na produção definitiva, depois de conferir quem receberá; o log
+registra `outbound_unrestricted` em cada início do serviço.
 
 O responsável libera uma conta dentro do container da aplicação:
 

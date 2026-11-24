@@ -4,10 +4,25 @@ import { betterAuth } from 'better-auth';
 import { Kysely, PostgresDialect } from 'kysely';
 import pg from 'pg';
 import { createMailTransport, type AuthMail, type MailSettings } from './mail.js';
+import {
+  createOutboundGate,
+  OutboundBlockedError,
+  type OutboundLogEntry,
+  type OutboundSettings,
+} from './outbound.js';
 
 export type { AuthMail } from './mail.js';
+export {
+  createOutboundGate,
+  DEFAULT_OUTBOUND_BATCH_LIMIT,
+  OutboundBlockedError,
+  parseAllowedRecipients,
+  type OutboundLogEntry,
+  type OutboundResult,
+  type OutboundSettings,
+} from './outbound.js';
 
-export interface AuthSettings extends MailSettings {
+export interface AuthSettings extends MailSettings, OutboundSettings {
   NODE_ENV: 'development' | 'test' | 'production';
   DATABASE_URL: string;
   FRONTEND_URL: string;
@@ -22,10 +37,13 @@ export interface Identity {
   user: AuthUser;
   session: { expiresAt: Date };
 }
-export type AuthEvent = 'email_accepted' | 'email_failed' | 'auth_failed';
+export type AuthEvent = 'email_accepted' | 'email_failed' | 'email_blocked' | 'auth_failed';
+export type InviteDelivery = 'accepted' | 'failed' | 'blocked';
 export interface AuthOptions {
+  /** Substitui só o transporte; o portão de envio continua valendo. */
   sendMail?: (message: AuthMail) => Promise<void>;
   onEvent?: (event: AuthEvent) => void;
+  onOutbound?: (entry: OutboundLogEntry) => void;
 }
 export function reportAuthEvent(event: AuthEvent) {
   process.stdout.write(`${JSON.stringify({ event })}\n`);
@@ -99,8 +117,11 @@ export function createAuthService(settings: AuthSettings, options: AuthOptions =
   pool.on('error', () => options.onEvent?.('auth_failed'));
   const database = new Kysely({ dialect: new PostgresDialect({ pool }) });
   const mail = createMailTransport(settings);
-  const send = options.sendMail ?? mail.send;
-  const deliveryContext = new AsyncLocalStorage<{ delivery: 'accepted' | 'failed' }>();
+  // Every delivery path, including an injected transport, crosses the outbound gate.
+  const outbound = createOutboundGate('email', settings, options.sendMail ?? mail.send, {
+    ...(options.onOutbound ? { log: options.onOutbound } : {}),
+  });
+  const deliveryContext = new AsyncLocalStorage<{ delivery: InviteDelivery }>();
   const hmac = (text: string) =>
     createHmac('sha256', settings.AUTH_SECRET).update(text).digest('hex');
   const auth = betterAuth({
@@ -139,17 +160,19 @@ export function createAuthService(settings: AuthSettings, options: AuthOptions =
         const page = user.emailVerified ? '/redefinir-senha' : '/ativar';
         const url = new URL(page, origin);
         url.searchParams.set('token', token);
+        const delivery = deliveryContext.getStore();
         try {
-          await send({
+          await outbound.send({
             to: user.email,
             subject: user.emailVerified ? 'Recuperar acesso' : 'Ativar seu acesso',
             text: `Use este link em até 15 minutos para definir sua senha: ${url.href}\nSe você não solicitou, ignore esta mensagem.`,
           });
-          const delivery = deliveryContext.getStore();
           if (delivery) delivery.delivery = 'accepted';
           options.onEvent?.('email_accepted');
-        } catch {
-          options.onEvent?.('email_failed');
+        } catch (error) {
+          const blocked = error instanceof OutboundBlockedError;
+          if (delivery) delivery.delivery = blocked ? 'blocked' : 'failed';
+          options.onEvent?.(blocked ? 'email_blocked' : 'email_failed');
         }
       },
       onPasswordReset: async ({ user }) => {
@@ -301,10 +324,12 @@ export function createAuthService(settings: AuthSettings, options: AuthOptions =
       headers: outputHeaders,
     });
   }
-  async function invite(email: string, name: string): Promise<{ delivery: 'accepted' | 'failed' }> {
+  async function invite(email: string, name: string): Promise<{ delivery: InviteDelivery }> {
     const normalized = normalizeEmail(email);
     if (!normalized || !name.trim() || name.trim().length > 80)
       throw new Error('Informe email válido e nome de até 80 caracteres.');
+    // Refuse before creating a pending account that could never receive its link.
+    if (!outbound.check(normalized)) return { delivery: 'blocked' };
     if (await accountLimit(normalized, 'invitation'))
       throw new Error('Aguarde 15 minutos antes de reenviar.');
     const context = await auth.$context;
@@ -325,7 +350,7 @@ export function createAuthService(settings: AuthSettings, options: AuthOptions =
     }
     if (found.user.emailVerified)
       throw new Error('Conta já ativa. Use Recuperar acesso na tela de entrada.');
-    const delivery = { delivery: 'failed' as 'accepted' | 'failed' };
+    const delivery: { delivery: InviteDelivery } = { delivery: 'failed' };
     await deliveryContext.run(delivery, () =>
       auth.api.requestPasswordReset({ body: { email: normalized } }),
     );

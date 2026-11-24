@@ -26,6 +26,8 @@ const production = {
   RENOVA_DB_NAME: 'renova_app',
   DATABASE_URL:
     'postgresql://renova_runtime:synthetic-long-random-credential@postgres.railway.internal:5432/renova_app',
+  OUTBOUND_ALLOWED_RECIPIENTS: 'equipe@example.com, @example.org',
+  OUTBOUND_SEND_TO_ANY: 'false',
 };
 
 describe('backend bootstrap', () => {
@@ -74,6 +76,14 @@ describe('backend bootstrap', () => {
       { RENOVA_DB_ENVIRONMENT_ID: production.RAILWAY_PROJECT_ID },
       { RESEND_API_KEY: undefined },
       { RESEND_API_KEY: 'SENTINEL_PRIVATE_KEY' },
+      // Outbound policy must be explicit; NODE_ENV=production never unlocks recipients.
+      { OUTBOUND_ALLOWED_RECIPIENTS: undefined },
+      { OUTBOUND_ALLOWED_RECIPIENTS: ' ' },
+      { OUTBOUND_ALLOWED_RECIPIENTS: 'equipe@example.com, qualquer-coisa' },
+      { OUTBOUND_SEND_TO_ANY: undefined },
+      { OUTBOUND_SEND_TO_ANY: '1' },
+      { OUTBOUND_SEND_TO_ANY: 'TRUE' },
+      { OUTBOUND_SEND_TO_ANY: 'yes' },
       { AUTH_SECRET: 'a'.repeat(64) },
       { AUTH_EMAIL_FROM: 'access@renova.local' },
       { SMTP_HOST: '127.0.0.1' },
@@ -102,6 +112,9 @@ describe('backend bootstrap', () => {
       'RESEND_API_KEY',
     );
     expect(() => parseEnv({ ...local, SMTP_HOST: undefined })).toThrow('SMTP_HOST');
+    expect(() => parseEnv({ ...local, OUTBOUND_SEND_TO_ANY: 'true' })).toThrow(
+      'OUTBOUND_SEND_TO_ANY',
+    );
   });
 
   it('omite valores rejeitados e segredos do diagnostico', () => {

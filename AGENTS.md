@@ -71,6 +71,7 @@ do plano e verify recebe a origem HTTPS. Resend foi validado no piloto; veja a
 - Tela: skill `verify-app`. Unitário com fake-api não fecha jornada.
 - Pronto = comando verde + o que **não** foi verificado escrito. O texto do agente não é o veredito.
 - Segredo fora do Git. MCP em [`.mcp.json`](.mcp.json) com `${VAR}`.
+- Nenhum envio a cliente real fora da produção definitiva. Todo envio externo (email, SMS, WhatsApp, webhook, cobrança) passa pelo [portão de envio](docs/process/authentication.md#portão-de-envio): por padrão só sai para `OUTBOUND_ALLOWED_RECIPIENTS`; `OUTBOUND_SEND_TO_ANY=true` é ligado à mão, só na produção definitiva, nunca deduzido de `NODE_ENV`, ambiente, hostname ou branch. Lote acima do limite é recusado. Canal novo entra pelo portão; não chame provedor direto. Antes de ligar rotina agendada ou lote, conte os destinatários e pergunte na dúvida.
 - CI magro: checks locais primeiro; estenda testes existentes; não crie job/workflow nem empurre WIP para o Actions.
 
 ## Skills (corpo só sob demanda)

@@ -19,6 +19,8 @@ const source = {
   AUTH_SECRET: '0123456789abcdef'.repeat(4),
   RESEND_API_KEY: 're_SYNTHETIC_PRIVATE_KEY',
   AUTH_EMAIL_FROM: 'access@example.com',
+  OUTBOUND_ALLOWED_RECIPIENTS: '@example.com',
+  OUTBOUND_SEND_TO_ANY: 'false',
 };
 const args = [
   '--project',
@@ -139,7 +141,7 @@ describe('convite executado no serviço Railway', () => {
   });
 
   it('a CLI distingue aceitação de falha sem expor destinatário nem link', async () => {
-    for (const delivery of ['accepted', 'failed']) {
+    for (const delivery of ['accepted', 'failed', 'blocked']) {
       const { auth, dependencies } = fixture();
       auth.invite.mockResolvedValue({ delivery });
       const output = { stdout: { write: vi.fn() }, stderr: { write: vi.fn() } };

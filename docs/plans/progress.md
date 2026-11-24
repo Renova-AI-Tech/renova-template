@@ -260,3 +260,19 @@ Cada sessão longa acrescenta um bloco no topo. Não apague histórico.
 - `pnpm check:quick` e `git diff --check` passaram; revisão independente aprovada.
   Nenhum banco local foi modificado.
   [Registro](../specs/renova-project-template/railway-validation.md).
+
+## 2026-11-24 — portão de envio externo
+
+- Regra: nenhum envio a cliente real fora da produção definitiva. Antes, o email
+  de acesso escolhia o transporte por `NODE_ENV` e não tinha lista de destinatários;
+  uma homologação com `NODE_ENV=production` enviaria convite a qualquer endereço.
+- Portão único em `packages/auth/src/outbound.ts` (receita de login): por padrão só
+  envia a domínios reservados e a `OUTBOUND_ALLOWED_RECIPIENTS`; liberar qualquer
+  endereço exige `OUTBOUND_SEND_TO_ANY=true` ligado à mão, nunca deduzido de
+  ambiente. Bloqueio e lote acima de 20 vão ao log com endereço mascarado. O
+  transporte injetado em teste também passa pelo portão; convite bloqueado não cria conta.
+- Produção exige as duas variáveis; `.railway/railway.ts` as preserva.
+- `tests/unit/outbound-paths.test.ts` (nos dois perfis) falha se código de servidor
+  ou script chamar provedor ou rede fora do transporte registrado.
+- Não verificado: aplicação real no Railway com as variáveis novas (`preserve()`
+  sobre variável recém-criada) nem envio real pelo Resend.

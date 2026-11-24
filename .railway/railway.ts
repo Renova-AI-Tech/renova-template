@@ -33,7 +33,14 @@ export default defineRailway((ctx) => {
       RENOVA_DB_ENVIRONMENT_ID: preserve(),
       RENOVA_DB_NAME: preserve(),
       ...(profile === 'authenticated'
-        ? { AUTH_SECRET: preserve(), RESEND_API_KEY: preserve(), AUTH_EMAIL_FROM: preserve() }
+        ? {
+            AUTH_SECRET: preserve(),
+            RESEND_API_KEY: preserve(),
+            AUTH_EMAIL_FROM: preserve(),
+            // Outbound gate: set by hand in the service; never derived from this file.
+            OUTBOUND_ALLOWED_RECIPIENTS: preserve(),
+            OUTBOUND_SEND_TO_ANY: preserve(),
+          }
         : {}),
     },
   });
